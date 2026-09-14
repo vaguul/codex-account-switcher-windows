@@ -61,6 +61,7 @@ public partial class MainWindow : Window
                 }
             }
 
+            await RecoverOrphanedActiveAsync();
             await ReloadAsync();
         }
         catch (Exception ex) { ShowError(ex.Message); }
@@ -93,6 +94,26 @@ public partial class MainWindow : Window
             if (auth is not null) CryptographicOperations.ZeroMemory(auth);
             SetBusy(false, StatusText.Text);
         }
+    }
+
+    private async Task RecoverOrphanedActiveAsync()
+    {
+        var orphanedId = await _vault.FindOrphanedActiveAsync();
+        if (orphanedId is null)
+        {
+            return;
+        }
+
+        var dialog = new AccountNameDialog("Recover active account") { Owner = this };
+        if (dialog.ShowDialog() != true)
+        {
+            StatusText.Text = "An encrypted active account snapshot is waiting to be recovered.";
+            return;
+        }
+
+        var count = (await _vault.GetProfilesAsync()).Count;
+        await _vault.AdoptOrphanAsync(orphanedId, dialog.AccountName, Colors[count % Colors.Length]);
+        StatusText.Text = "Recovered the active encrypted account snapshot.";
     }
 
     private async void SwitchButton_Click(object sender, RoutedEventArgs e)

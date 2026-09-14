@@ -9,9 +9,9 @@ public sealed class AccountNameDialog : Window
     private readonly System.Windows.Controls.TextBox _nameBox = new() { MinWidth = 300, MaxLength = 60, Margin = new Thickness(0, 8, 0, 18) };
     private readonly TextBlock _errorText = new() { Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 166, 166)), Height = 20 };
 
-    public AccountNameDialog()
+    public AccountNameDialog(string title = "Save active account")
     {
-        Title = "Save active account";
+        Title = title;
         Width = 390;
         Height = 240;
         ResizeMode = ResizeMode.NoResize;

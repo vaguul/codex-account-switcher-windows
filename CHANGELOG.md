@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 - 2026-09-14
+
+- Detect and recover an active DPAPI snapshot whose metadata write was interrupted, instead of silently leaving the account unavailable.
+- Add a regression test for orphaned active-profile recovery.
+
 ## 0.2.0 - 2026-09-14
 
 - Keep the manual active-account save flow and add browser-assisted `codex login --device-auth` account capture in an isolated temporary home.

@@ -92,6 +92,124 @@ public sealed class ProfileVault
         }
     }
 
+    public async Task<string?> FindOrphanedActiveAsync(CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(_paths.ActiveAuthPath) || !Directory.Exists(_paths.VaultDirectory))
+        {
+            return null;
+        }
+
+        byte[]? activeAuth = null;
+        try
+        {
+            activeAuth = await SecureFileSystem.ReadBoundedAsync(_paths.ActiveAuthPath, AuthDocument.MaximumBytes, cancellationToken);
+            var activeFingerprint = AuthDocument.Validate(activeAuth).Fingerprint;
+
+            await _gate.WaitAsync(cancellationToken);
+            try
+            {
+                var profiles = await LoadMetadataCoreAsync(cancellationToken);
+                if (profiles.Any(profile => profile.Fingerprint == activeFingerprint))
+                {
+                    return null;
+                }
+
+                foreach (var vaultFile in Directory.EnumerateFiles(_paths.VaultDirectory, "*.auth.dpapi", SearchOption.TopDirectoryOnly))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var fileName = Path.GetFileName(vaultFile);
+                    const string suffix = ".auth.dpapi";
+                    if (!fileName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var profileId = fileName[..^suffix.Length];
+                    if (!Guid.TryParseExact(profileId, "N", out _))
+                    {
+                        continue;
+                    }
+
+                    byte[]? encrypted = null;
+                    byte[]? auth = null;
+                    try
+                    {
+                        encrypted = await SecureFileSystem.ReadBoundedAsync(vaultFile, AuthDocument.MaximumBytes * 2, cancellationToken);
+                        auth = _protector.Unprotect(encrypted);
+                        if (AuthDocument.Validate(auth).Fingerprint == activeFingerprint)
+                        {
+                            return profileId;
+                        }
+                    }
+                    catch (Exception ex) when (ex is CryptographicException or JsonException or InvalidDataException)
+                    {
+                        // Ignore stale or incomplete vault files while looking for a recoverable active snapshot.
+                    }
+                    finally
+                    {
+                        if (encrypted is not null) CryptographicOperations.ZeroMemory(encrypted);
+                        if (auth is not null) CryptographicOperations.ZeroMemory(auth);
+                    }
+                }
+
+                return null;
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+        finally
+        {
+            if (activeAuth is not null) CryptographicOperations.ZeroMemory(activeAuth);
+        }
+    }
+
+    public async Task<AccountProfile> AdoptOrphanAsync(
+        string profileId,
+        string displayName,
+        string colorHex,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateProfileId(profileId);
+        ValidateDisplayName(displayName);
+        ValidateColor(colorHex);
+
+        byte[]? auth = null;
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            var profiles = await LoadMetadataCoreAsync(cancellationToken);
+            if (profiles.Any(profile => profile.Id == profileId))
+            {
+                throw new InvalidOperationException("The orphaned profile was already recovered.");
+            }
+
+            auth = await ReadAuthAsync(profileId, cancellationToken);
+            var identity = AuthDocument.Validate(auth);
+            if (profiles.Any(profile => profile.Fingerprint == identity.Fingerprint))
+            {
+                throw new InvalidOperationException("This Codex account is already saved.");
+            }
+
+            var profile = new AccountProfile
+            {
+                Id = profileId,
+                DisplayName = displayName.Trim(),
+                ColorHex = colorHex,
+                Fingerprint = identity.Fingerprint
+            };
+            profiles.Add(profile);
+            await SaveMetadataCoreAsync(profiles, cancellationToken);
+            return Clone(profile);
+        }
+        finally
+        {
+            if (auth is not null) CryptographicOperations.ZeroMemory(auth);
+            _gate.Release();
+        }
+    }
+
     public async Task<byte[]> ReadAuthAsync(string profileId, CancellationToken cancellationToken = default)
     {
         ValidateProfileId(profileId);

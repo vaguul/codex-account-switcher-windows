@@ -49,7 +49,7 @@ dotnet run --project tests/Vaguul.CodexAccountSwitcher.Tests -c Release
 ./scripts/publish.ps1
 ```
 
-The 15-case test executable uses synthetic credentials and an isolated temporary directory. It never reads or changes the real Codex login.
+The 16-case test executable uses synthetic credentials and an isolated temporary directory. It never reads or changes the real Codex login.
 
 ## Security
 
@@ -57,6 +57,6 @@ Read [SECURITY.md](SECURITY.md) before reporting a vulnerability. Never attach `
 
 ## Status
 
-`0.2.0` is a Windows preview. Switching, recovery, usage parsing, login handoff, and profile transfer are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
+`0.2.1` is a Windows preview. Switching, recovery, usage parsing, login handoff, profile transfer, and interrupted-save recovery are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
 
 Licensed under the [MIT License](LICENSE).

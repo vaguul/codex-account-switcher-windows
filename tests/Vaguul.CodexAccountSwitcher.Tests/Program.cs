@@ -19,7 +19,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("path containment rejects siblings", TestPathContainmentAsync),
     ("rate windows use actual durations", TestRateLimitsAsync),
     ("usage metadata persists without credentials", TestUsageMetadataAsync),
-    ("profile transfer encrypts and imports", TestProfileTransferAsync)
+    ("profile transfer encrypts and imports", TestProfileTransferAsync),
+    ("orphaned active snapshot is recoverable", TestOrphanRecoveryAsync)
 };
 
 var failures = 0;
@@ -331,6 +332,34 @@ static async Task TestProfileTransferAsync()
         Array.Clear(password, 0, password.Length);
         if (File.Exists(package)) File.Delete(package);
     }
+}
+
+static async Task TestOrphanRecoveryAsync()
+{
+    await WithFixtureAsync(async fixture =>
+    {
+        var active = Auth("orphan-account", "orphan-secret");
+        var orphanId = Guid.NewGuid().ToString("N");
+        var encrypted = new DpapiProtector().Protect(active);
+        try
+        {
+            await File.WriteAllBytesAsync(fixture.Paths.ActiveAuthPath, active);
+            await SecureFileSystem.AtomicWriteAsync(
+                Path.Combine(fixture.Paths.VaultDirectory, orphanId + ".auth.dpapi"),
+                encrypted);
+
+            Equal(orphanId, await fixture.Vault.FindOrphanedActiveAsync());
+            var recovered = await fixture.Vault.AdoptOrphanAsync(orphanId, "Recovered", "#E9A23B");
+            Equal(orphanId, recovered.Id);
+            Equal("Recovered", recovered.DisplayName);
+            Equal(1, (await fixture.Vault.GetProfilesAsync()).Count);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(active);
+            CryptographicOperations.ZeroMemory(encrypted);
+        }
+    });
 }
 
 static async Task WithFixtureAsync(Func<Fixture, Task> test)

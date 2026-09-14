@@ -32,6 +32,8 @@ On the next startup, an incomplete journal is never applied silently. The user i
 
 Usage is refreshed only when the user chooses **Refresh usage**. For each saved profile, the application creates a private temporary `CODEX_HOME`, writes the decrypted profile snapshot there, starts the installed Codex binary with `app-server --stdio`, and requests `account/rateLimits/read` over the local JSON protocol. The temporary directory is deleted after the request. No private web usage endpoint, telemetry, background polling, or refreshed token is retained by the usage feature.
 
+When startup finds a valid DPAPI vault snapshot for the current active account but no matching metadata entry, it treats the snapshot as an interrupted save. The user is asked for a profile label and the existing encrypted file is adopted without copying credentials into plaintext or deleting other vault snapshots.
+
 ## Login handoff
 
 The optional browser flow invokes the installed Codex CLI as `codex login --device-auth` with a private temporary `CODEX_HOME`. The switcher does not implement or scrape the browser OAuth pages. After the CLI exits successfully, it validates the generated `auth.json`, encrypts it into the DPAPI vault, and deletes the temporary home. The existing **Save active account** path remains the primary manual alternative.
