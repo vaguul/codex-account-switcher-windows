@@ -147,6 +147,24 @@ public sealed class ProfileVault
         }
     }
 
+    public async Task UpdateUsageAsync(string profileId, UsageSnapshot usage, CancellationToken cancellationToken = default)
+    {
+        ValidateProfileId(profileId);
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            var profiles = await LoadMetadataCoreAsync(cancellationToken);
+            var profile = profiles.SingleOrDefault(item => item.Id == profileId)
+                ?? throw new InvalidOperationException("The account profile no longer exists.");
+            profile.Usage = usage;
+            await SaveMetadataCoreAsync(profiles, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task DeleteAsync(string profileId, CancellationToken cancellationToken = default)
     {
         ValidateProfileId(profileId);

@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private readonly ProfileVault _vault;
     private readonly SwitchRecoveryStore _recovery;
     private readonly AccountSwitchCoordinator _coordinator;
+    private readonly CodexAppServerClient _usageClient;
     private string? _activeFingerprint;
     private bool _busy;
 
@@ -24,6 +25,7 @@ public partial class MainWindow : Window
         _vault = new ProfileVault(_paths, protector);
         _recovery = new SwitchRecoveryStore(_paths, protector);
         _coordinator = new AccountSwitchCoordinator(_paths, _vault, _recovery, new CodexDesktopController());
+        _usageClient = new CodexAppServerClient(_paths, new CodexBinaryLocator());
         Loaded += MainWindow_Loaded;
     }
 
@@ -133,8 +135,32 @@ public partial class MainWindow : Window
     {
         try
         {
-            SetBusy(true, "Refreshing...");
+            SetBusy(true, "Refreshing usage from Codex...");
+            var profiles = await _vault.GetProfilesAsync();
+            var failures = 0;
+            foreach (var profile in profiles)
+            {
+                byte[]? auth = null;
+                try
+                {
+                    auth = await _vault.ReadAuthAsync(profile.Id);
+                    var usage = await _usageClient.ReadUsageAsync(auth);
+                    await _vault.UpdateUsageAsync(profile.Id, usage);
+                }
+                catch
+                {
+                    failures++;
+                }
+                finally
+                {
+                    if (auth is not null) CryptographicOperations.ZeroMemory(auth);
+                }
+            }
+
             await ReloadAsync();
+            StatusText.Text = failures == 0
+                ? "Usage refreshed."
+                : $"Usage refreshed with {failures} unavailable profile{(failures == 1 ? "" : "s")}; previous data was kept.";
         }
         catch (Exception ex) { ShowError(ex.Message); }
         finally { SetBusy(false, StatusText.Text); }
@@ -173,6 +199,7 @@ public partial class MainWindow : Window
         _busy = busy;
         SaveActiveButton.IsEnabled = !busy;
         ProfileList.IsEnabled = !busy;
+        RefreshButton.IsEnabled = !busy;
         DeleteButton.IsEnabled = !busy;
         SwitchButton.IsEnabled = !busy;
         if (!busy) UpdateSelectionState();

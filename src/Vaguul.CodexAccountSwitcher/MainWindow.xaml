@@ -42,7 +42,7 @@
                     <TextBlock Text="ACTIVE IN CODEX" FontSize="10" Foreground="#8E979F" FontWeight="Bold"/>
                     <TextBlock x:Name="ActiveAccountText" Text="Checking..." FontSize="15" Margin="0,3,0,0"/>
                 </StackPanel>
-                <Button Grid.Column="2" Content="Refresh" Click="RefreshButton_Click" Background="Transparent" Foreground="#DCE1E5" BorderBrush="#4A5158" Height="36"/>
+                <Button Grid.Column="2" x:Name="RefreshButton" Content="Refresh usage" Click="RefreshButton_Click" Background="Transparent" Foreground="#DCE1E5" BorderBrush="#4A5158" Height="36"/>
             </Grid>
         </Border>
 
@@ -87,6 +87,22 @@
                             <StackPanel Grid.Column="1" Margin="14,0">
                                 <TextBlock Text="{Binding DisplayName}" FontSize="16" FontWeight="SemiBold"/>
                                 <TextBlock Text="Protected by Windows DPAPI" FontSize="12" Foreground="#8E979F" Margin="0,4,0,0"/>
+                                <ItemsControl ItemsSource="{Binding Usage.Windows}" Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Label}" FontSize="11" Foreground="#A9B0B6"/>
+                                                <ProgressBar Grid.Column="1" Value="{Binding RemainingPercent}" Maximum="100" Height="4" Margin="10,0" Foreground="#68D391" Background="#30353A"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding RemainingPercent, StringFormat={}{0:0}% left}" FontSize="11" Foreground="#DCE1E5"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
                             <TextBlock Grid.Column="2" Foreground="#8E979F" FontSize="10" FontWeight="Bold" VerticalAlignment="Center">
                                 <TextBlock.Style>

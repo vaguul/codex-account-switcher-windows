@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Vaguul.CodexAccountSwitcher.Models;
 using Vaguul.CodexAccountSwitcher.Services;
 
 var tests = new (string Name, Func<Task> Run)[]
@@ -16,7 +17,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("committed transaction reconciles without rollback", TestCommittedRecoveryAsync),
     ("trusted binary path is constrained", TestBinaryPathAsync),
     ("path containment rejects siblings", TestPathContainmentAsync),
-    ("rate windows use actual durations", TestRateLimitsAsync)
+    ("rate windows use actual durations", TestRateLimitsAsync),
+    ("usage metadata persists without credentials", TestUsageMetadataAsync)
 };
 
 var failures = 0;
@@ -237,6 +239,43 @@ static Task TestRateLimitsAsync()
     Equal("15 minutes", usage.Windows[2].Label);
     Equal(49d, usage.Windows[1].RemainingPercent);
     return Task.CompletedTask;
+}
+
+static async Task TestUsageMetadataAsync()
+{
+    await WithFixtureAsync(async fixture =>
+    {
+        var secret = Auth("usage-account", "usage-secret");
+        try
+        {
+            var profile = await fixture.Vault.AddAsync("Usage", "#4F8EF7", secret);
+            await fixture.Vault.UpdateUsageAsync(profile.Id, new UsageSnapshot
+            {
+                Status = "available",
+                PlanType = "pro",
+                Windows =
+                [
+                    new UsageWindow
+                    {
+                        BucketId = "codex",
+                        Position = "primary",
+                        Label = "5 hours",
+                        UsedPercent = 25,
+                        RemainingPercent = 75,
+                        WindowDurationMinutes = 300,
+                        ResetsAt = DateTimeOffset.UtcNow.AddHours(2)
+                    }
+                ]
+            });
+
+            var loaded = (await fixture.Vault.GetProfilesAsync()).Single();
+            Equal("available", loaded.Usage?.Status);
+            Equal(75d, loaded.Usage?.Windows.Single().RemainingPercent);
+            var metadata = await File.ReadAllTextAsync(fixture.Paths.ProfilesPath);
+            True(!metadata.Contains("usage-secret", StringComparison.Ordinal), "A credential leaked into usage metadata.");
+        }
+        finally { CryptographicOperations.ZeroMemory(secret); }
+    });
 }
 
 static async Task WithFixtureAsync(Func<Fixture, Task> test)

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3 - 2026-09-14
+
+- Add on-demand usage refresh through the local Codex app-server protocol.
+- Show each saved account's current quota windows, remaining percentage, and cached check state.
+- Keep the previous usage snapshot when a profile cannot be queried.
+- Run each usage query in a temporary isolated `CODEX_HOME` and remove the copied credential after completion.
+- Add regression coverage for usage metadata persistence without credential leakage.
+
 ## 0.1.2 - 2026-09-14
 
 - Replace default WPF button rendering with compact rounded controls and clear disabled states.

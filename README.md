@@ -30,6 +30,7 @@ The evidence behind these choices is recorded in [docs/RESEARCH.md](docs/RESEARC
 2. Open the switcher and select **Save active account**.
 3. To add another account, sign out and sign in to it in Codex, then save it too.
 4. Select a saved profile and choose **Switch to selected**.
+5. Choose **Refresh usage** to query the saved profiles through Codex's local `app-server` protocol. The card shows each returned quota window and keeps the previous snapshot if a profile is temporarily unavailable.
 
 Close standalone Codex CLI sessions before switching. The application closes and relaunches Codex Desktop only after confirmation. It refuses to switch away from an account that has not been saved, preventing an accidental loss of the only current credential snapshot.
 
@@ -41,7 +42,7 @@ dotnet run --project tests/Vaguul.CodexAccountSwitcher.Tests -c Release
 ./scripts/publish.ps1
 ```
 
-The 13-case test executable uses synthetic credentials and an isolated temporary directory. It never reads or changes the real Codex login.
+The 14-case test executable uses synthetic credentials and an isolated temporary directory. It never reads or changes the real Codex login.
 
 ## Security
 
@@ -49,6 +50,6 @@ Read [SECURITY.md](SECURITY.md) before reporting a vulnerability. Never attach `
 
 ## Status
 
-`0.1.2` is a Windows preview. The switching and recovery paths are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
+`0.1.3` is a Windows preview. Switching, recovery, and usage parsing are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
 
 Licensed under the [MIT License](LICENSE).
