@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 - 2026-09-14
+
+- Replace default WPF button rendering with compact rounded controls and clear disabled states.
+- Replace the default white ListBox focus border with a restrained blue selection state.
+- Mark each profile as `ACTIVE` or `SAVED` and keep the action state synchronized with the selected account.
+
 ## 0.1.1 - 2026-09-14
 
 - Disable switching and deletion for the account that is already active.

@@ -145,10 +145,11 @@ public partial class MainWindow : Window
     private async Task ReloadAsync()
     {
         var profiles = await _vault.GetProfilesAsync();
-        ProfileList.ItemsSource = profiles;
         var fingerprint = await GetActiveFingerprintAsync();
         _activeFingerprint = fingerprint;
         var active = profiles.FirstOrDefault(profile => profile.Fingerprint == fingerprint);
+        foreach (var profile in profiles) profile.IsActive = profile.Fingerprint == fingerprint;
+        ProfileList.ItemsSource = profiles;
         ActiveAccountText.Text = active?.DisplayName ?? (fingerprint is null ? "No valid login detected" : "Active account is not saved");
         ActiveDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(active?.ColorHex ?? "#6B737B"));
         UpdateSelectionState();

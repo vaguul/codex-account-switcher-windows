@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Vaguul.CodexAccountSwitcher.Models;
 
 public sealed class AccountProfile
@@ -9,6 +11,8 @@ public sealed class AccountProfile
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? LastUsedAt { get; set; }
     public UsageSnapshot? Usage { get; set; }
+    [JsonIgnore]
+    public bool IsActive { get; set; }
 }
 
 public sealed class UsageSnapshot
