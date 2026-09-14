@@ -1,14 +1,18 @@
 [CmdletBinding()]
-param([string]$Runtime = "win-x64")
+param(
+    [string]$Runtime = "win-x64",
+    [string]$OutputName = "win-x64"
+)
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$output = Join-Path $root "artifacts\$Runtime"
+$output = Join-Path $root "artifacts\$OutputName"
 
-dotnet publish (Join-Path $root "src\Vaguul.CodexAccountSwitcher\Vaguul.CodexAccountSwitcher.csproj") `
+& dotnet publish (Join-Path $root "src\Vaguul.CodexAccountSwitcher\Vaguul.CodexAccountSwitcher.csproj") `
     -c Release -r $Runtime --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
     -o $output
+if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed with exit code $LASTEXITCODE" }
 
 $exe = Join-Path $output "Vaguul.CodexAccountSwitcher.exe"
 $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $exe).Hash.ToLowerInvariant()
