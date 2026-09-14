@@ -63,7 +63,11 @@ public partial class MainWindow : Window
             auth = await SecureFileSystem.ReadBoundedAsync(_paths.ActiveAuthPath, AuthDocument.MaximumBytes);
             _ = AuthDocument.Validate(auth);
             var dialog = new AccountNameDialog { Owner = this };
-            if (dialog.ShowDialog() != true) return;
+            if (dialog.ShowDialog() != true)
+            {
+                StatusText.Text = "Ready.";
+                return;
+            }
 
             var count = (await _vault.GetProfilesAsync()).Count;
             await _vault.AddAsync(dialog.AccountName, Colors[count % Colors.Length], auth);
@@ -137,6 +141,12 @@ public partial class MainWindow : Window
         {
             SetBusy(true, "Refreshing usage from Codex...");
             var profiles = await _vault.GetProfilesAsync();
+            if (profiles.Count == 0)
+            {
+                StatusText.Text = "Save an account before refreshing usage.";
+                return;
+            }
+
             var failures = 0;
             foreach (var profile in profiles)
             {
@@ -170,12 +180,14 @@ public partial class MainWindow : Window
 
     private async Task ReloadAsync()
     {
+        var selectedId = (ProfileList.SelectedItem as AccountProfile)?.Id;
         var profiles = await _vault.GetProfilesAsync();
         var fingerprint = await GetActiveFingerprintAsync();
         _activeFingerprint = fingerprint;
         var active = profiles.FirstOrDefault(profile => profile.Fingerprint == fingerprint);
         foreach (var profile in profiles) profile.IsActive = profile.Fingerprint == fingerprint;
         ProfileList.ItemsSource = profiles;
+        ProfileList.SelectedItem = profiles.FirstOrDefault(profile => profile.Id == selectedId);
         ActiveAccountText.Text = active?.DisplayName ?? (fingerprint is null ? "No valid login detected" : "Active account is not saved");
         ActiveDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(active?.ColorHex ?? "#6B737B"));
         UpdateSelectionState();

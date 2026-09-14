@@ -57,7 +57,7 @@
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="ListBoxItem">
-                                <Border x:Name="ItemBorder" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="6">
+                                <Border x:Name="ItemBorder" Background="#191C1F" BorderBrush="#30353A" BorderThickness="1" CornerRadius="6">
                                     <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
                                 </Border>
                                 <ControlTemplate.Triggers>
@@ -65,9 +65,14 @@
                                         <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#4F8EF7"/>
                                         <Setter TargetName="ItemBorder" Property="Background" Value="#162338"/>
                                     </Trigger>
-                                    <Trigger Property="IsMouseOver" Value="True">
+                                    <MultiTrigger>
+                                        <MultiTrigger.Conditions>
+                                            <Condition Property="IsMouseOver" Value="True"/>
+                                            <Condition Property="IsSelected" Value="False"/>
+                                        </MultiTrigger.Conditions>
                                         <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#425466"/>
-                                    </Trigger>
+                                        <Setter TargetName="ItemBorder" Property="Background" Value="#21272D"/>
+                                    </MultiTrigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>
                         </Setter.Value>
@@ -76,7 +81,7 @@
             </ListBox.ItemContainerStyle>
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <Border Background="#191C1F" BorderBrush="#30353A" BorderThickness="1" CornerRadius="6" Padding="16">
+                    <Border Background="Transparent" Padding="16">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -85,12 +90,41 @@
                             </Grid.ColumnDefinitions>
                             <Border Width="5" Height="38" CornerRadius="2" Background="{Binding ColorHex}"/>
                             <StackPanel Grid.Column="1" Margin="14,0">
-                                <TextBlock Text="{Binding DisplayName}" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding DisplayName}" ToolTip="{Binding DisplayName}" TextTrimming="CharacterEllipsis" FontSize="16" FontWeight="SemiBold"/>
                                 <TextBlock Text="Protected by Windows DPAPI" FontSize="12" Foreground="#8E979F" Margin="0,4,0,0"/>
+                                <TextBlock Text="Usage not checked" FontSize="11" Foreground="#A9B0B6" Margin="0,8,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Usage.Status}" Value="available">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Usage.Status}" Value="unavailable">
+                                                    <Setter Property="Text" Value="Usage unavailable"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                                 <ItemsControl ItemsSource="{Binding Usage.Windows}" Margin="0,8,0,0">
+                                    <ItemsControl.Style>
+                                        <Style TargetType="ItemsControl">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Usage.Status}" Value="available">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ItemsControl.Style>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Margin="0,2">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
@@ -98,11 +132,24 @@
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Text="{Binding Label}" FontSize="11" Foreground="#A9B0B6"/>
                                                 <ProgressBar Grid.Column="1" Value="{Binding RemainingPercent}" Maximum="100" Height="4" Margin="10,0" Foreground="#68D391" Background="#30353A"/>
-                                                <TextBlock Grid.Column="2" Text="{Binding RemainingPercent, StringFormat={}{0:0}% left}" FontSize="11" Foreground="#DCE1E5"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding RemainingPercent, StringFormat={}{0:0}% left}" ToolTip="{Binding UsedPercent, StringFormat={}{0:0}% used}" FontSize="11" Foreground="#DCE1E5"/>
+                                                <TextBlock Grid.Row="1" Text="{Binding ResetsAt, StringFormat={}{0:MMM d HH:mm} reset}" FontSize="10" Foreground="#737C84" Margin="0,2,0,0"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                <TextBlock Text="{Binding Usage.CheckedAt, StringFormat={}{0:MMM d HH:mm} checked}" FontSize="10" Foreground="#737C84" Margin="0,4,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Usage.Status}" Value="available">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </StackPanel>
                             <TextBlock Grid.Column="2" Foreground="#8E979F" FontSize="10" FontWeight="Bold" VerticalAlignment="Center">
                                 <TextBlock.Style>

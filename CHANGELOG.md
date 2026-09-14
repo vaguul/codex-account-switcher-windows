@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.4 - 2026-09-14
+
+- Preserve the selected profile after a usage refresh or reload.
+- Keep selected cards visibly blue while hovering them.
+- Show a clear state for profiles whose usage has not been checked or is unavailable.
+- Display quota reset times and the last successful usage check time.
+- Prevent long profile names from distorting the account list layout.
+
 ## 0.1.3 - 2026-09-14
 
 - Add on-demand usage refresh through the local Codex app-server protocol.
