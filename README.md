@@ -1,0 +1,54 @@
+# Vaguul Codex Account Switcher for Windows
+
+A small Windows desktop application for keeping multiple Codex logins on one PC and switching the active login safely. Saved credentials are encrypted with Windows DPAPI for the current user. The application changes only Codex's `auth.json`; sessions, skills, memories, configuration, and projects stay in place.
+
+> Independent community project. Not affiliated with or endorsed by OpenAI.
+
+## Why this implementation
+
+Existing switchers demonstrate that account switching is useful, but their code and issue trackers also show recurring failure modes: plaintext credential copies, account logout after switching, interrupted conversations, incorrect quota labels, startup parse failures, and large background write activity. This project intentionally uses a narrower design:
+
+- DPAPI-encrypted profiles and backups, plus a current-user-only ACL.
+- Atomic replacement with an encrypted recovery snapshot and transaction journal.
+- Automatic rollback if Codex does not reopen after a switch.
+- Stable account fingerprints that survive access-token refreshes.
+- Strict process checks to avoid racing a running CLI or app-server.
+- No auto-switching, warm-up prompts, tray service, telemetry, LAN server, proxy, cloud sync, or background polling.
+- Dynamic quota-window parsing by actual duration, never by `primary`/`secondary` position alone.
+
+The evidence behind these choices is recorded in [docs/RESEARCH.md](docs/RESEARCH.md).
+
+## Requirements
+
+- Windows 10 version 2004 or newer, or Windows 11.
+- Codex Desktop installed for the current Windows user.
+- For framework-dependent builds, .NET 8 Desktop Runtime.
+
+## Use
+
+1. Sign in to an account in Codex Desktop.
+2. Open the switcher and select **Save active account**.
+3. To add another account, sign out and sign in to it in Codex, then save it too.
+4. Select a saved profile and choose **Switch to selected**.
+
+Close standalone Codex CLI sessions before switching. The application closes and relaunches Codex Desktop only after confirmation. It refuses to switch away from an account that has not been saved, preventing an accidental loss of the only current credential snapshot.
+
+## Build and test
+
+```powershell
+dotnet build Vaguul.CodexAccountSwitcher.sln -c Release -warnaserror
+dotnet run --project tests/Vaguul.CodexAccountSwitcher.Tests -c Release
+./scripts/publish.ps1
+```
+
+The 13-case test executable uses synthetic credentials and an isolated temporary directory. It never reads or changes the real Codex login.
+
+## Security
+
+Read [SECURITY.md](SECURITY.md) before reporting a vulnerability. Never attach `auth.json`, DPAPI vault files, tokens, or account identifiers to an issue. The plaintext active `auth.json` remains in Codex's own directory because Codex must read it; encrypted copies belong only to this application.
+
+## Status
+
+`0.1.0` is an initial Windows preview. The switching and recovery paths are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
+
+Licensed under the [MIT License](LICENSE).
