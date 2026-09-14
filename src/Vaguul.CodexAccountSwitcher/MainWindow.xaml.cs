@@ -51,7 +51,7 @@ public partial class MainWindow : Window
             await ReloadAsync();
         }
         catch (Exception ex) { ShowError(ex.Message); }
-        finally { SetBusy(false, "Ready"); }
+        finally { SetBusy(false, StatusText.Text); }
     }
 
     private async void SaveActiveButton_Click(object sender, RoutedEventArgs e)
@@ -90,12 +90,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (MessageBox.Show(
+            if (MessageBox.Show(
                 $"Switch to {profile.DisplayName}? Codex Desktop will close and reopen. Running CLI sessions must be closed first.",
                 "Confirm account switch", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
-        {
-            return;
-        }
+            {
+                StatusText.Text = "Account switch canceled.";
+                return;
+            }
 
         try
         {
@@ -127,12 +128,19 @@ public partial class MainWindow : Window
             }
 
             if (MessageBox.Show($"Delete the encrypted profile for {profile.DisplayName}?", "Delete account",
-                    MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            {
+                StatusText.Text = "Deletion canceled.";
+                return;
+            }
 
+            SetBusy(true, $"Deleting {profile.DisplayName}...");
             await _vault.DeleteAsync(profile.Id);
             await ReloadAsync();
+            StatusText.Text = $"Deleted {profile.DisplayName}.";
         }
         catch (Exception ex) { ShowError(ex.Message); }
+        finally { SetBusy(false, StatusText.Text); }
     }
 
     private async void RefreshButton_Click(object sender, RoutedEventArgs e)
@@ -148,8 +156,10 @@ public partial class MainWindow : Window
             }
 
             var failures = 0;
-            foreach (var profile in profiles)
+            for (var index = 0; index < profiles.Count; index++)
             {
+                var profile = profiles[index];
+                StatusText.Text = $"Refreshing usage {index + 1}/{profiles.Count}: {profile.DisplayName}...";
                 byte[]? auth = null;
                 try
                 {

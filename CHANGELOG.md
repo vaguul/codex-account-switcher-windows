@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.5 - 2026-09-14
+
+- Show per-profile progress while usage is being refreshed.
+- Prevent duplicate delete clicks and show the delete operation state.
+- Explain empty account names directly inside the save dialog.
+- Preserve startup errors instead of replacing them with a misleading ready state.
+
 ## 0.1.4 - 2026-09-14
 
 - Preserve the selected profile after a usage refresh or reload.
