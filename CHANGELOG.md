@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.4 - 2026-09-14
+
+- Avoid killing entire process trees during automatic shutdown so the switcher can finish when it was launched from Codex's terminal.
+- Close only the verified ChatGPT desktop window and identified `codex.exe` processes before switching.
+
 ## 0.2.3 - 2026-09-14
 
 - Validate the active account and its saved profile before closing Codex during a switch.

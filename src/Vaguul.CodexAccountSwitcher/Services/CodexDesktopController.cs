@@ -32,7 +32,7 @@ public sealed class CodexDesktopController : ICodexDesktopController
                 }
                 catch (TimeoutException)
                 {
-                    process.Kill(entireProcessTree: true);
+                    process.Kill(entireProcessTree: false);
                     await process.WaitForExitAsync(cancellationToken);
                 }
             }
@@ -83,7 +83,8 @@ public sealed class CodexDesktopController : ICodexDesktopController
                 {
                     try
                     {
-                        process.Kill(entireProcessTree: true);
+                        // Do not kill the process tree: the switcher may have been launched from Codex's terminal.
+                        process.Kill(entireProcessTree: false);
                         await process.WaitForExitAsync(cancellationToken);
                     }
                     catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
@@ -143,7 +144,8 @@ public sealed class CodexDesktopController : ICodexDesktopController
                 var relative = Path.GetRelativePath(windowsApps, fullPath);
                 if (!relative.StartsWith("..", StringComparison.Ordinal)
                     && relative.StartsWith("OpenAI.Codex_", StringComparison.OrdinalIgnoreCase)
-                    && Path.GetFileName(fullPath).Equals("ChatGPT.exe", StringComparison.OrdinalIgnoreCase))
+                    && Path.GetFileName(fullPath).Equals("ChatGPT.exe", StringComparison.OrdinalIgnoreCase)
+                    && process.MainWindowHandle != IntPtr.Zero)
                 {
                     result.Add(process);
                     continue;
