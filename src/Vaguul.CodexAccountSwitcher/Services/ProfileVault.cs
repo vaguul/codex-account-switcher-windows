@@ -147,7 +147,19 @@ public sealed class ProfileVault
         }
     }
 
-    public async Task UpdateUsageAsync(string profileId, UsageSnapshot usage, CancellationToken cancellationToken = default)
+    public Task UpdateUsageAsync(
+        string profileId,
+        UsageSnapshot usage,
+        CancellationToken cancellationToken = default)
+    {
+        return UpdateUsageAsync(profileId, usage, null, cancellationToken);
+    }
+
+    public async Task UpdateUsageAsync(
+        string profileId,
+        UsageSnapshot usage,
+        string? email,
+        CancellationToken cancellationToken = default)
     {
         ValidateProfileId(profileId);
         await _gate.WaitAsync(cancellationToken);
@@ -156,6 +168,22 @@ public sealed class ProfileVault
             var profiles = await LoadMetadataCoreAsync(cancellationToken);
             var profile = profiles.SingleOrDefault(item => item.Id == profileId)
                 ?? throw new InvalidOperationException("The account profile no longer exists.");
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                var normalizedEmail = email.Trim();
+                if (normalizedEmail.Length > 320)
+                {
+                    throw new ArgumentException("Account email metadata is too long.", nameof(email));
+                }
+
+                profile.Email = normalizedEmail;
+            }
+
+            if (usage.PlanType is null)
+            {
+                usage.PlanType = profile.Usage?.PlanType;
+            }
+
             profile.Usage = usage;
             await SaveMetadataCoreAsync(profiles, cancellationToken);
         }
@@ -255,6 +283,7 @@ public sealed class ProfileVault
         DisplayName = value.DisplayName,
         ColorHex = value.ColorHex,
         Fingerprint = value.Fingerprint,
+        Email = value.Email,
         CreatedAt = value.CreatedAt,
         LastUsedAt = value.LastUsedAt,
         Usage = value.Usage

@@ -8,6 +8,7 @@ public sealed class AccountProfile
     public string DisplayName { get; set; } = "Account";
     public string ColorHex { get; set; } = "#5B8DEF";
     public string Fingerprint { get; set; } = string.Empty;
+    public string? Email { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? LastUsedAt { get; set; }
     public UsageSnapshot? Usage { get; set; }
@@ -35,5 +36,4 @@ public sealed class UsageWindow
 }
 
 public sealed record AuthIdentity(string Fingerprint);
-public sealed record AppServerUsageResult(UsageSnapshot Snapshot, byte[]? RefreshedAuth);
-public sealed record AppServerLoginResult(byte[] AuthJson, string? PlanType);
+public sealed record AppServerProfileSnapshot(UsageSnapshot Usage, string? Email);

@@ -13,7 +13,8 @@ Existing switchers demonstrate that account switching is useful, but their code 
 - Automatic rollback if Codex does not reopen after a switch.
 - Stable account fingerprints that survive access-token refreshes.
 - Strict process checks to avoid racing a running CLI or app-server.
-- No auto-switching, warm-up prompts, tray service, telemetry, LAN server, proxy, cloud sync, or background polling.
+- Optional system-tray access, while keeping account switching and usage refresh foreground operations.
+- No auto-switching, warm-up prompts, telemetry, LAN server, proxy, cloud sync, or background usage polling.
 - Dynamic quota-window parsing by actual duration, never by `primary`/`secondary` position alone.
 
 The evidence behind these choices is recorded in [docs/RESEARCH.md](docs/RESEARCH.md).
@@ -32,6 +33,12 @@ The evidence behind these choices is recorded in [docs/RESEARCH.md](docs/RESEARC
 4. Select a saved profile and choose **Switch to selected**.
 5. Choose **Refresh usage** to query the saved profiles through Codex's local `app-server` protocol. The card shows each returned quota window and keeps the previous snapshot if a profile is temporarily unavailable.
 
+You can also choose **Add account with browser**. It runs Codex's supported `login --device-auth` flow in an isolated temporary home, opens the browser login, and saves the resulting account only after you give it a profile name. The original active-account save flow remains available.
+
+The window can be minimized to the Windows system tray. Use the tray menu to reopen the switcher, refresh usage, or exit it completely.
+
+Use **Export profiles** to create a portable, password-encrypted package. **Import profiles** decrypts that package into the current Windows user's DPAPI vault, skips duplicate account identities, and restores saved quota metadata when present. The package password is required; it is never stored by the application.
+
 Close standalone Codex CLI sessions before switching. The application closes and relaunches Codex Desktop only after confirmation. It refuses to switch away from an account that has not been saved, preventing an accidental loss of the only current credential snapshot.
 
 ## Build and test
@@ -42,14 +49,14 @@ dotnet run --project tests/Vaguul.CodexAccountSwitcher.Tests -c Release
 ./scripts/publish.ps1
 ```
 
-The 14-case test executable uses synthetic credentials and an isolated temporary directory. It never reads or changes the real Codex login.
+The 15-case test executable uses synthetic credentials and an isolated temporary directory. It never reads or changes the real Codex login.
 
 ## Security
 
-Read [SECURITY.md](SECURITY.md) before reporting a vulnerability. Never attach `auth.json`, DPAPI vault files, tokens, or account identifiers to an issue. The plaintext active `auth.json` remains in Codex's own directory because Codex must read it; encrypted copies belong only to this application.
+Read [SECURITY.md](SECURITY.md) before reporting a vulnerability. Never attach `auth.json`, DPAPI vault files, tokens, or account identifiers to an issue. The plaintext active `auth.json` remains in Codex's own directory because Codex must read it; encrypted copies belong only to this application. Portable exports are encrypted with a user-supplied password and should be treated like any other credential backup.
 
 ## Status
 
-`0.1.5` is a Windows preview. Switching, recovery, and usage parsing are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
+`0.2.0` is a Windows preview. Switching, recovery, usage parsing, login handoff, and profile transfer are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
 
 Licensed under the [MIT License](LICENSE).

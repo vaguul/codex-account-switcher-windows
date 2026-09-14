@@ -11,6 +11,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -30,7 +31,16 @@
                     Height="42" MinWidth="168" VerticalAlignment="Top"/>
         </Grid>
 
-        <Border Grid.Row="1" Background="#1B1E21" BorderBrush="#30353A" BorderThickness="1" CornerRadius="6" Padding="14" Margin="0,24,0,16">
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,16,0,0">
+            <Button x:Name="BrowserLoginButton" Content="Add account with browser" Click="BrowserLoginButton_Click"
+                    Background="Transparent" Foreground="#DCE1E5" BorderBrush="#4A5158"/>
+            <Button x:Name="ExportButton" Content="Export profiles" Click="ExportButton_Click"
+                    Background="Transparent" Foreground="#DCE1E5" BorderBrush="#4A5158" Margin="8,0,0,0"/>
+            <Button x:Name="ImportButton" Content="Import profiles" Click="ImportButton_Click"
+                    Background="Transparent" Foreground="#DCE1E5" BorderBrush="#4A5158" Margin="8,0,0,0"/>
+        </StackPanel>
+
+        <Border Grid.Row="2" Background="#1B1E21" BorderBrush="#30353A" BorderThickness="1" CornerRadius="6" Padding="14" Margin="0,16,0,16">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -46,7 +56,7 @@
             </Grid>
         </Border>
 
-        <ListBox Grid.Row="2" x:Name="ProfileList" SelectionChanged="ProfileList_SelectionChanged" Background="Transparent" BorderThickness="0"
+        <ListBox Grid.Row="3" x:Name="ProfileList" SelectionChanged="ProfileList_SelectionChanged" Background="Transparent" BorderThickness="0"
                  Foreground="#F5F7F8" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
@@ -91,6 +101,19 @@
                             <Border Width="5" Height="38" CornerRadius="2" Background="{Binding ColorHex}"/>
                             <StackPanel Grid.Column="1" Margin="14,0">
                                 <TextBlock Text="{Binding DisplayName}" ToolTip="{Binding DisplayName}" TextTrimming="CharacterEllipsis" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding Email}" TextTrimming="CharacterEllipsis" FontSize="12" Foreground="#A9B0B6" Margin="0,4,0,0"/>
+                                <TextBlock Text="{Binding Usage.PlanType, StringFormat={}{0} plan}" FontSize="11" Foreground="#A9B0B6" Margin="0,2,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Usage.Status}" Value="available">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                                 <TextBlock Text="Protected by Windows DPAPI" FontSize="12" Foreground="#8E979F" Margin="0,4,0,0"/>
                                 <TextBlock Text="Usage not checked" FontSize="11" Foreground="#A9B0B6" Margin="0,8,0,0">
                                     <TextBlock.Style>
@@ -170,7 +193,7 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <Grid Grid.Row="3" Margin="0,16,0,0">
+        <Grid Grid.Row="4" Margin="0,16,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>

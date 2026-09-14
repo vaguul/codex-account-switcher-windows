@@ -18,7 +18,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("trusted binary path is constrained", TestBinaryPathAsync),
     ("path containment rejects siblings", TestPathContainmentAsync),
     ("rate windows use actual durations", TestRateLimitsAsync),
-    ("usage metadata persists without credentials", TestUsageMetadataAsync)
+    ("usage metadata persists without credentials", TestUsageMetadataAsync),
+    ("profile transfer encrypts and imports", TestProfileTransferAsync)
 };
 
 var failures = 0;
@@ -276,6 +277,60 @@ static async Task TestUsageMetadataAsync()
         }
         finally { CryptographicOperations.ZeroMemory(secret); }
     });
+}
+
+static async Task TestProfileTransferAsync()
+{
+    var package = Path.Combine(Path.GetTempPath(), $"vaguul-profiles-{Guid.NewGuid():N}.vaguul-profiles");
+    var password = "correct horse battery staple".ToCharArray();
+    try
+    {
+        await WithFixtureAsync(async source =>
+        {
+            var secret = Auth("transfer-account", "transfer-secret");
+            try
+            {
+                var profile = await source.Vault.AddAsync("Transfer", "#33B679", secret);
+                await source.Vault.UpdateUsageAsync(profile.Id, new UsageSnapshot
+                {
+                    Status = "available",
+                    PlanType = "plus",
+                    Windows = [new UsageWindow { Label = "5 hours", RemainingPercent = 80 }]
+                }, "transfer@example.test");
+                await new ProfileTransferService(source.Vault).ExportAsync(package, password);
+            }
+            finally { CryptographicOperations.ZeroMemory(secret); }
+        });
+
+        var encrypted = await File.ReadAllBytesAsync(package);
+        try
+        {
+            True(!Encoding.UTF8.GetString(encrypted).Contains("transfer-secret", StringComparison.Ordinal), "A transfer token remained readable.");
+        }
+        finally { CryptographicOperations.ZeroMemory(encrypted); }
+
+        await ThrowsAsync<InvalidDataException>(() => new ProfileTransferService(new ProfileVault(
+            new AppPaths(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")), Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))),
+            new DpapiProtector())).ImportAsync(package, "wrong password".ToCharArray()));
+
+        await WithFixtureAsync(async target =>
+        {
+            var result = await new ProfileTransferService(target.Vault).ImportAsync(package, password);
+            Equal(1, result.Imported);
+            Equal(0, result.SkippedDuplicates);
+            var profile = (await target.Vault.GetProfilesAsync()).Single();
+            Equal("transfer@example.test", profile.Email);
+            Equal("plus", profile.Usage?.PlanType);
+            var restored = await target.Vault.ReadAuthAsync(profile.Id);
+            try { True(Encoding.UTF8.GetBytes("transfer-secret").Length > 0 && Encoding.UTF8.GetString(restored).Contains("transfer-account", StringComparison.Ordinal), "Imported credentials were not restored."); }
+            finally { CryptographicOperations.ZeroMemory(restored); }
+        });
+    }
+    finally
+    {
+        Array.Clear(password, 0, password.Length);
+        if (File.Exists(package)) File.Delete(package);
+    }
 }
 
 static async Task WithFixtureAsync(Func<Fixture, Task> test)

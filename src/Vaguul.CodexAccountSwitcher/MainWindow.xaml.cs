@@ -2,6 +2,11 @@ using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using WinFormsContextMenuStrip = System.Windows.Forms.ContextMenuStrip;
+using WinFormsNotifyIcon = System.Windows.Forms.NotifyIcon;
+using WinFormsToolStripMenuItem = System.Windows.Forms.ToolStripMenuItem;
+using WinFormsToolStripSeparator = System.Windows.Forms.ToolStripSeparator;
+using WinFormsSystemIcons = System.Drawing.SystemIcons;
 using Vaguul.CodexAccountSwitcher.Models;
 using Vaguul.CodexAccountSwitcher.Services;
 
@@ -15,6 +20,9 @@ public partial class MainWindow : Window
     private readonly SwitchRecoveryStore _recovery;
     private readonly AccountSwitchCoordinator _coordinator;
     private readonly CodexAppServerClient _usageClient;
+    private readonly CodexLoginClient _loginClient;
+    private readonly ProfileTransferService _transfer;
+    private readonly WinFormsNotifyIcon _trayIcon;
     private string? _activeFingerprint;
     private bool _busy;
 
@@ -26,7 +34,12 @@ public partial class MainWindow : Window
         _recovery = new SwitchRecoveryStore(_paths, protector);
         _coordinator = new AccountSwitchCoordinator(_paths, _vault, _recovery, new CodexDesktopController());
         _usageClient = new CodexAppServerClient(_paths, new CodexBinaryLocator());
+        _loginClient = new CodexLoginClient(_paths, new CodexBinaryLocator());
+        _transfer = new ProfileTransferService(_vault);
+        _trayIcon = CreateTrayIcon();
         Loaded += MainWindow_Loaded;
+        StateChanged += MainWindow_StateChanged;
+        Closed += MainWindow_Closed;
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -36,14 +49,14 @@ public partial class MainWindow : Window
             _vault.Initialize();
             if (_recovery.HasPendingTransaction)
             {
-                var answer = MessageBox.Show(
+                var answer = System.Windows.MessageBox.Show(
                     "An interrupted account switch was found. Restore the previous account now? Codex will close and reopen.",
                     "Recovery required", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (answer == MessageBoxResult.Yes)
                 {
                     SetBusy(true, "Recovering previous account...");
                     var recovery = await _coordinator.RecoverPendingAsync();
-                    MessageBox.Show(recovery.Message, "Recovery", MessageBoxButton.OK,
+                    System.Windows.MessageBox.Show(recovery.Message, "Recovery", MessageBoxButton.OK,
                         recovery.Succeeded ? MessageBoxImage.Information : MessageBoxImage.Warning);
                 }
             }
@@ -90,13 +103,13 @@ public partial class MainWindow : Window
             return;
         }
 
-            if (MessageBox.Show(
-                $"Switch to {profile.DisplayName}? Codex Desktop will close and reopen. Running CLI sessions must be closed first.",
-                "Confirm account switch", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
-            {
-                StatusText.Text = "Account switch canceled.";
-                return;
-            }
+        if (System.Windows.MessageBox.Show(
+            $"Switch to {profile.DisplayName}? Codex Desktop will close and reopen. Running CLI sessions must be closed first.",
+            "Confirm account switch", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            StatusText.Text = "Account switch canceled.";
+            return;
+        }
 
         try
         {
@@ -104,11 +117,119 @@ public partial class MainWindow : Window
             var result = await _coordinator.SwitchAsync(profile.Id);
             StatusText.Text = result.Message;
             if (!result.Succeeded)
-                MessageBox.Show(result.Message, "Account switch", MessageBoxButton.OK, MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show(result.Message, "Account switch", MessageBoxButton.OK, MessageBoxImage.Warning);
             await ReloadAsync();
         }
         catch (Exception ex) { ShowError(ex.Message); }
         finally { SetBusy(false, StatusText.Text); }
+    }
+
+    private async void BrowserLoginButton_Click(object sender, RoutedEventArgs e)
+    {
+        byte[]? auth = null;
+        try
+        {
+            SetBusy(true, "Waiting for browser sign-in...");
+            auth = await _loginClient.LoginAsync();
+            var dialog = new AccountNameDialog { Owner = this };
+            if (dialog.ShowDialog() != true)
+            {
+                StatusText.Text = "Browser sign-in canceled after authentication.";
+                return;
+            }
+
+            var count = (await _vault.GetProfilesAsync()).Count;
+            await _vault.AddAsync(dialog.AccountName, Colors[count % Colors.Length], auth);
+            await ReloadAsync();
+            StatusText.Text = "Browser account saved securely.";
+        }
+        catch (Exception ex) { ShowError(ex.Message); }
+        finally
+        {
+            if (auth is not null) CryptographicOperations.ZeroMemory(auth);
+            SetBusy(false, StatusText.Text);
+        }
+    }
+
+    private async void ExportButton_Click(object sender, RoutedEventArgs e)
+    {
+        var fileDialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Filter = "Vaguul profile package (*.vaguul-profiles)|*.vaguul-profiles|All files (*.*)|*.*",
+            DefaultExt = ".vaguul-profiles",
+            AddExtension = true,
+            FileName = "vaguul-profiles.vaguul-profiles",
+            OverwritePrompt = true
+        };
+        if (fileDialog.ShowDialog() != true)
+        {
+            StatusText.Text = "Export canceled.";
+            return;
+        }
+
+        var passwordDialog = new PasswordDialog("Export profiles", "Create a password for this portable package.", confirmPassword: true)
+        {
+            Owner = this
+        };
+        if (passwordDialog.ShowDialog() != true)
+        {
+            StatusText.Text = "Export canceled.";
+            return;
+        }
+
+        var password = passwordDialog.CopyPassword();
+        try
+        {
+            SetBusy(true, "Encrypting profiles...");
+            await _transfer.ExportAsync(fileDialog.FileName, password);
+            StatusText.Text = "Encrypted profiles exported.";
+        }
+        catch (Exception ex) { ShowError(ex.Message); }
+        finally
+        {
+            Array.Clear(password, 0, password.Length);
+            SetBusy(false, StatusText.Text);
+        }
+    }
+
+    private async void ImportButton_Click(object sender, RoutedEventArgs e)
+    {
+        var fileDialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "Vaguul profile package (*.vaguul-profiles)|*.vaguul-profiles|All files (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (fileDialog.ShowDialog() != true)
+        {
+            StatusText.Text = "Import canceled.";
+            return;
+        }
+
+        var passwordDialog = new PasswordDialog("Import profiles", "Enter the password for this portable package.", confirmPassword: false)
+        {
+            Owner = this
+        };
+        if (passwordDialog.ShowDialog() != true)
+        {
+            StatusText.Text = "Import canceled.";
+            return;
+        }
+
+        var password = passwordDialog.CopyPassword();
+        try
+        {
+            SetBusy(true, "Decrypting profiles...");
+            var result = await _transfer.ImportAsync(fileDialog.FileName, password);
+            await ReloadAsync();
+            StatusText.Text = $"Imported {result.Imported} profile{(result.Imported == 1 ? "" : "s")}; skipped {result.SkippedDuplicates} duplicate{(result.SkippedDuplicates == 1 ? "" : "s")}.";
+        }
+        catch (Exception ex) { ShowError(ex.Message); }
+        finally
+        {
+            Array.Clear(password, 0, password.Length);
+            SetBusy(false, StatusText.Text);
+        }
     }
 
     private async void DeleteButton_Click(object sender, RoutedEventArgs e)
@@ -127,7 +248,7 @@ public partial class MainWindow : Window
                 return;
             }
 
-            if (MessageBox.Show($"Delete the encrypted profile for {profile.DisplayName}?", "Delete account",
+            if (System.Windows.MessageBox.Show($"Delete the encrypted profile for {profile.DisplayName}?", "Delete account",
                     MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
             {
                 StatusText.Text = "Deletion canceled.";
@@ -164,8 +285,8 @@ public partial class MainWindow : Window
                 try
                 {
                     auth = await _vault.ReadAuthAsync(profile.Id);
-                    var usage = await _usageClient.ReadUsageAsync(auth);
-                    await _vault.UpdateUsageAsync(profile.Id, usage);
+                    var snapshot = await _usageClient.ReadProfileAsync(auth);
+                    await _vault.UpdateUsageAsync(profile.Id, snapshot.Usage, snapshot.Email);
                 }
                 catch
                 {
@@ -199,7 +320,7 @@ public partial class MainWindow : Window
         ProfileList.ItemsSource = profiles;
         ProfileList.SelectedItem = profiles.FirstOrDefault(profile => profile.Id == selectedId);
         ActiveAccountText.Text = active?.DisplayName ?? (fingerprint is null ? "No valid login detected" : "Active account is not saved");
-        ActiveDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(active?.ColorHex ?? "#6B737B"));
+        ActiveDot.Fill = new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(active?.ColorHex ?? "#6B737B"));
         UpdateSelectionState();
     }
 
@@ -220,6 +341,9 @@ public partial class MainWindow : Window
     {
         _busy = busy;
         SaveActiveButton.IsEnabled = !busy;
+        BrowserLoginButton.IsEnabled = !busy;
+        ExportButton.IsEnabled = !busy;
+        ImportButton.IsEnabled = !busy;
         ProfileList.IsEnabled = !busy;
         RefreshButton.IsEnabled = !busy;
         DeleteButton.IsEnabled = !busy;
@@ -252,6 +376,65 @@ public partial class MainWindow : Window
     private void ShowError(string message)
     {
         StatusText.Text = message;
-        MessageBox.Show(message, "Vaguul Codex Account Switcher", MessageBoxButton.OK, MessageBoxImage.Error);
+        System.Windows.MessageBox.Show(message, "Vaguul Codex Account Switcher", MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
+    private WinFormsNotifyIcon CreateTrayIcon()
+    {
+        var menu = new WinFormsContextMenuStrip();
+        menu.Items.Add(new WinFormsToolStripMenuItem("Open", null, (_, _) => Dispatcher.BeginInvoke(ShowFromTray)));
+        menu.Items.Add(new WinFormsToolStripMenuItem("Refresh usage", null, (_, _) => Dispatcher.BeginInvoke(RefreshFromTray)));
+        menu.Items.Add(new WinFormsToolStripSeparator());
+        menu.Items.Add(new WinFormsToolStripMenuItem("Exit", null, (_, _) => Dispatcher.BeginInvoke(ExitFromTray)));
+
+        var icon = new WinFormsNotifyIcon
+        {
+            Icon = WinFormsSystemIcons.Application,
+            Text = "Vaguul Codex Account Switcher",
+            ContextMenuStrip = menu,
+            Visible = true
+        };
+        icon.DoubleClick += (_, _) => Dispatcher.BeginInvoke(ShowFromTray);
+        return icon;
+    }
+
+    private void MainWindow_StateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Minimized)
+        {
+            HideToTray();
+        }
+    }
+
+    private void MainWindow_Closed(object? sender, EventArgs e)
+    {
+        _trayIcon.Visible = false;
+        _trayIcon.Dispose();
+    }
+
+    private void HideToTray()
+    {
+        Hide();
+        ShowInTaskbar = false;
+        StatusText.Text = "Running in the system tray.";
+    }
+
+    private void ShowFromTray()
+    {
+        ShowInTaskbar = true;
+        Show();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Activate();
+    }
+
+    private void RefreshFromTray()
+    {
+        ShowFromTray();
+        RefreshButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+    }
+
+    private void ExitFromTray()
+    {
+        Close();
     }
 }

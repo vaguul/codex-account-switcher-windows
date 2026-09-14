@@ -6,8 +6,8 @@ namespace Vaguul.CodexAccountSwitcher;
 
 public sealed class AccountNameDialog : Window
 {
-    private readonly TextBox _nameBox = new() { MinWidth = 300, MaxLength = 60, Margin = new Thickness(0, 8, 0, 18) };
-    private readonly TextBlock _errorText = new() { Foreground = new SolidColorBrush(Color.FromRgb(244, 166, 166)), Height = 20 };
+    private readonly System.Windows.Controls.TextBox _nameBox = new() { MinWidth = 300, MaxLength = 60, Margin = new Thickness(0, 8, 0, 18) };
+    private readonly TextBlock _errorText = new() { Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(244, 166, 166)), Height = 20 };
 
     public AccountNameDialog()
     {
@@ -16,10 +16,10 @@ public sealed class AccountNameDialog : Window
         Height = 240;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.FromRgb(25, 28, 31));
-        Foreground = Brushes.White;
+        Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(25, 28, 31));
+        Foreground = System.Windows.Media.Brushes.White;
 
-        var save = new Button { Content = "Save account", IsDefault = true };
+        var save = new System.Windows.Controls.Button { Content = "Save account", IsDefault = true };
         save.Click += (_, _) =>
         {
             if (string.IsNullOrWhiteSpace(_nameBox.Text))
@@ -31,8 +31,8 @@ public sealed class AccountNameDialog : Window
 
             DialogResult = true;
         };
-        var cancel = new Button { Content = "Cancel", IsCancel = true, Margin = new Thickness(8, 0, 0, 0) };
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        var cancel = new System.Windows.Controls.Button { Content = "Cancel", IsCancel = true, Margin = new Thickness(8, 0, 0, 0) };
+        var actions = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, HorizontalAlignment = System.Windows.HorizontalAlignment.Right };
         actions.Children.Add(save);
         actions.Children.Add(cancel);
 

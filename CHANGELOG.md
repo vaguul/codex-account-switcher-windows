@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 - 2026-09-14
+
+- Keep the manual active-account save flow and add browser-assisted `codex login --device-auth` account capture in an isolated temporary home.
+- Add system-tray reopen, usage refresh, and explicit exit actions.
+- Add password-encrypted profile export/import with duplicate detection and DPAPI re-encryption on import.
+- Show account email and plan metadata when Codex provides it through `account/read`.
+- Expand transfer and metadata regression coverage to 15 tests.
+
 ## 0.1.5 - 2026-09-14
 
 - Show per-profile progress while usage is being refreshed.

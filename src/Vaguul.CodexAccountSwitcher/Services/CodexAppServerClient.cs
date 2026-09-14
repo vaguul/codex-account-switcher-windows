@@ -20,6 +20,11 @@ public sealed class CodexAppServerClient
 
     public async Task<UsageSnapshot> ReadUsageAsync(ReadOnlyMemory<byte> authJson, CancellationToken cancellationToken = default)
     {
+        return (await ReadProfileAsync(authJson, cancellationToken)).Usage;
+    }
+
+    public async Task<AppServerProfileSnapshot> ReadProfileAsync(ReadOnlyMemory<byte> authJson, CancellationToken cancellationToken = default)
+    {
         _ = AuthDocument.Validate(authJson.Span);
         var executable = _locator.Find()
             ?? throw new InvalidOperationException("Codex CLI was not found in the local installation.");
@@ -52,11 +57,27 @@ public sealed class CodexAppServerClient
             await SendAsync(process.StandardInput, new { method = "initialized", @params = new { } }, cancellationToken);
             await SendAsync(process.StandardInput, new { method = "account/rateLimits/read", id = 2, @params = new { } }, cancellationToken);
             var usageResponse = await ReadResponseAsync(process.StandardOutput, 2, cancellationToken);
+            string? accountResponse = null;
+            try
+            {
+                await SendAsync(process.StandardInput, new { method = "account/read", id = 3, @params = new { refreshToken = false } }, cancellationToken);
+                accountResponse = await ReadResponseAsync(process.StandardOutput, 3, cancellationToken);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or JsonException or TimeoutException
+                                       || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+            {
+                // Usage remains useful when an older Codex build does not expose account metadata.
+            }
+
             await StopAsync(process, cancellationToken);
             await stderrDrain;
             process.Dispose();
             process = null;
-            return RateLimitParser.Parse(Encoding.UTF8.GetBytes(usageResponse));
+
+            var usage = RateLimitParser.Parse(Encoding.UTF8.GetBytes(usageResponse));
+            var account = ParseAccount(accountResponse);
+            usage.PlanType = account.PlanType;
+            return new AppServerProfileSnapshot(usage, account.Email);
         }
         catch (JsonException)
         {
@@ -150,7 +171,7 @@ public sealed class CodexAppServerClient
 
             if (root.TryGetProperty("error", out _))
             {
-                throw new InvalidOperationException("Codex rejected the usage request.");
+                throw new InvalidOperationException("Codex rejected the request.");
             }
 
             return root.GetRawText();
@@ -179,5 +200,40 @@ public sealed class CodexAppServerClient
     private static async Task DrainAsync(StreamReader reader)
     {
         while (await reader.ReadLineAsync() is not null) { }
+    }
+
+    private static (string? Email, string? PlanType) ParseAccount(string? responseJson)
+    {
+        if (string.IsNullOrWhiteSpace(responseJson))
+        {
+            return (null, null);
+        }
+
+        using var document = JsonDocument.Parse(responseJson);
+        var root = document.RootElement;
+        if (root.TryGetProperty("result", out var result) && result.ValueKind == JsonValueKind.Object)
+        {
+            root = result;
+        }
+
+        if (!root.TryGetProperty("account", out var account) || account.ValueKind != JsonValueKind.Object)
+        {
+            return (null, null);
+        }
+
+        var email = ReadBoundedString(account, "email", 320);
+        var planType = ReadBoundedString(account, "planType", 80);
+        return (email, planType);
+    }
+
+    private static string? ReadBoundedString(JsonElement element, string propertyName, int maximumLength)
+    {
+        if (!element.TryGetProperty(propertyName, out var value) || value.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        var text = value.GetString()?.Trim();
+        return string.IsNullOrWhiteSpace(text) || text.Length > maximumLength ? null : text;
     }
 }
