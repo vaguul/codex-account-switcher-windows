@@ -1,6 +1,6 @@
 # GitHub switcher audit
 
-Research performed on 2026-09-13 and rechecked on 2026-09-14. Repositories were cloned and inspected at the commits below. No source code was copied into this project.
+Research performed on 2026-09-13 and rechecked on 2026-09-14. Repositories were cloned or reviewed from their public GitHub pages at the commits below. No source code was copied into this project.
 
 | Repository | Commit inspected | Relevant observation |
 | --- | --- | --- |
@@ -15,6 +15,17 @@ Research performed on 2026-09-13 and rechecked on 2026-09-14. Repositories were 
 | [cguru/Codex-Account-Switcher-Windows](https://github.com/cguru/Codex-Account-Switcher-Windows) | `17e316cb` | Delegates login handling to a bundled third-party authentication component. |
 | [mahirozdin/Codex-Multi-Account-Manager](https://github.com/mahirozdin/Codex-Multi-Account-Manager) | `42290d1e` | Additional multi-account implementation included for behavior comparison. |
 
+## Current comparison
+
+The current public landscape makes the product gap clearer:
+
+- [ZOONGG/codex-swap-account](https://github.com/ZOONGG/codex-swap-account) leads on visible desktop ergonomics: overlay, tray, hotkeys, multi-monitor handling, and a documented restart flow.
+- [Te3-j/Codex-Switch](https://github.com/Te3-j/Codex-Switch) leads on onboarding and discovery: an in-app OAuth handoff, a `Use best` action, quota cards, token statistics, and a packaged Windows build.
+- [wwrrj/Codex-Switcher](https://github.com/wwrrj/Codex-Switcher) leads on breadth: usage analytics, token history, scheduling, settings, and account health, at the cost of a larger surface to maintain.
+- [liuzhao1225/codex-account-switcher](https://github.com/liuzhao1225/codex-account-switcher) and [isxlan0/Codex_AccountSwitch](https://github.com/isxlan0/Codex_AccountSwitch) show the discoverability advantage of cross-platform or high-polish builds; the latter currently reports 239 stars on its public page.
+
+Our previous weakness was not credential storage or transaction integrity. It was process lifetime: the switcher could be launched as a descendant of Codex, and closing Codex could terminate it before the swap completed. A second practical weakness was allowing duplicate display labels, which made two saved identities such as `mtp` easy to confuse. Version 0.2.5 addresses both without copying the competitors' plaintext storage, private endpoints, warm-up activity, or remote-control surfaces.
+
 ## Issue evidence
 
 The design responds to public failure reports, not hypothetical feature lists:
@@ -26,4 +37,4 @@ The design responds to public failure reports, not hypothetical feature lists:
 
 ## Decisions
 
-These findings led to a deliberately local, foreground-only application: DPAPI instead of plaintext snapshots; rollback before feature breadth; exact installed-process verification; no private web endpoint; no periodic prompts; no remote control; and no automatic account rotation.
+These findings led to a deliberately local application: DPAPI instead of plaintext snapshots; rollback before feature breadth; exact installed-process verification; a detached one-shot worker for process lifetime isolation; no private web endpoint; no periodic prompts; no remote control; and no automatic account rotation.

@@ -21,7 +21,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("rate windows use actual durations", TestRateLimitsAsync),
     ("usage metadata persists without credentials", TestUsageMetadataAsync),
     ("profile transfer encrypts and imports", TestProfileTransferAsync),
-    ("orphaned active snapshot is recoverable", TestOrphanRecoveryAsync)
+    ("orphaned active snapshot is recoverable", TestOrphanRecoveryAsync),
+    ("detached switch task arguments are constrained", TestSwitchTaskArguments)
 };
 
 var failures = 0;
@@ -379,6 +380,30 @@ static async Task TestOrphanRecoveryAsync()
             CryptographicOperations.ZeroMemory(encrypted);
         }
     });
+}
+
+static Task TestSwitchTaskArguments()
+{
+    var profileId = Guid.NewGuid().ToString("N");
+    var taskName = SwitchTaskLauncher.CreateTaskName(profileId);
+    var command = SwitchTaskLauncher.BuildTaskCommand(
+        @"C:\Program Files\Vaguul\Vaguul.CodexAccountSwitcher.exe",
+        profileId,
+        taskName);
+
+    True(SwitchTaskLauncher.TryParse(
+        ["--complete-switch", profileId, "--task-name", taskName],
+        out var request), "Valid worker arguments were rejected.");
+    Equal(profileId, request.ProfileId);
+    Equal(taskName, request.TaskName);
+    True(command.Contains("--complete-switch", StringComparison.Ordinal), "Worker flag was missing.");
+    True(!SwitchTaskLauncher.TryParse(
+        ["--complete-switch", profileId, "--task-name", "arbitrary-task"],
+        out _), "Arbitrary task names were accepted.");
+    True(!SwitchTaskLauncher.TryParse(
+        ["--complete-switch", profileId, "--task-name", taskName, "extra"],
+        out _), "Extra worker arguments were accepted.");
+    return Task.CompletedTask;
 }
 
 static async Task WithFixtureAsync(Func<Fixture, Task> test)

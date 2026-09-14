@@ -100,7 +100,7 @@
                             </Grid.ColumnDefinitions>
                             <Border Width="5" Height="38" CornerRadius="2" Background="{Binding ColorHex}"/>
                             <StackPanel Grid.Column="1" Margin="14,0">
-                                <TextBlock Text="{Binding DisplayName}" ToolTip="{Binding DisplayName}" TextTrimming="CharacterEllipsis" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding DisplayLabel}" ToolTip="{Binding DisplayLabel}" TextTrimming="CharacterEllipsis" FontSize="16" FontWeight="SemiBold"/>
                                 <TextBlock Text="{Binding Email}" TextTrimming="CharacterEllipsis" FontSize="12" Foreground="#A9B0B6" Margin="0,4,0,0"/>
                                 <TextBlock Text="{Binding Usage.PlanType, StringFormat={}{0} plan}" FontSize="11" Foreground="#A9B0B6" Margin="0,2,0,0">
                                     <TextBlock.Style>

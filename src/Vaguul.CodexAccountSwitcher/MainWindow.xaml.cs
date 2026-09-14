@@ -135,11 +135,21 @@ public partial class MainWindow : Window
         try
         {
             SetBusy(true, $"Switching to {profile.DisplayName}...");
-            var result = await _coordinator.SwitchAsync(profile.Id);
-            StatusText.Text = result.Message;
-            if (!result.Succeeded)
-                System.Windows.MessageBox.Show(result.Message, "Account switch", MessageBoxButton.OK, MessageBoxImage.Warning);
-            await ReloadAsync();
+            var executablePath = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(executablePath)
+                || !Path.IsPathFullyQualified(executablePath)
+                || !executablePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Detached switching is available from the published Windows executable, not from a dotnet development host.");
+            }
+
+            _ = await SwitchTaskLauncher.ScheduleAsync(profile.Id, executablePath);
+            System.Windows.MessageBox.Show(
+                "The switch was queued safely. This window will close, Codex will restart, and the detached worker will finish the account change.",
+                "Account switch",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            System.Windows.Application.Current.Shutdown();
         }
         catch (Exception ex) { ShowError(ex.Message); }
         finally { SetBusy(false, StatusText.Text); }
@@ -334,6 +344,19 @@ public partial class MainWindow : Window
     {
         var selectedId = (ProfileList.SelectedItem as AccountProfile)?.Id;
         var profiles = await _vault.GetProfilesAsync();
+        var duplicateNames = profiles
+            .GroupBy(profile => profile.DisplayName.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(group => group.Count() > 1)
+            .SelectMany(group => group)
+            .Select(profile => profile.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var profile in profiles)
+        {
+            profile.DisplayLabel = duplicateNames.Contains(profile.Id)
+                ? $"{profile.DisplayName} · {profile.Email ?? $"profile {profile.Id[..6]}"}"
+                : profile.DisplayName;
+        }
+
         var fingerprint = await GetActiveFingerprintAsync();
         _activeFingerprint = fingerprint;
         var active = profiles.FirstOrDefault(profile => profile.Fingerprint == fingerprint);

@@ -14,6 +14,8 @@ public sealed class AccountProfile
     public UsageSnapshot? Usage { get; set; }
     [JsonIgnore]
     public bool IsActive { get; set; }
+    [JsonIgnore]
+    public string DisplayLabel { get; set; } = "Account";
 }
 
 public sealed class UsageSnapshot

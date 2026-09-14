@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.5 - 2026-09-14
+
+- Hand off confirmed switches to a detached one-shot Windows worker before Codex closes, preventing the switcher from being terminated through Codex's process/job ancestry.
+- Validate worker task arguments and clean up the scheduled task after completion.
+- Disambiguate duplicate profile labels with the saved email or a short profile identifier.
+- Add regression coverage for constrained detached-worker arguments.
+
 ## 0.2.4 - 2026-09-14
 
 - Avoid killing entire process trees during automatic shutdown so the switcher can finish when it was launched from Codex's terminal.
