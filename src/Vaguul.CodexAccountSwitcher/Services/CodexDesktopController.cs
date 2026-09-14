@@ -49,6 +49,18 @@ public sealed class CodexDesktopController : ICodexDesktopController
 
     public bool HasBlockingCodexProcesses()
     {
+        var desktopProcesses = GetVerifiedDesktopProcesses();
+        var desktopRunning = desktopProcesses.Any(process => !process.HasExited);
+        foreach (var process in desktopProcesses)
+        {
+            process.Dispose();
+        }
+
+        if (desktopRunning)
+        {
+            return true;
+        }
+
         foreach (var process in Process.GetProcessesByName("codex"))
         {
             using (process)

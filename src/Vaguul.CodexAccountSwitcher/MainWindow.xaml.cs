@@ -19,6 +19,7 @@ public partial class MainWindow : Window
     private readonly ProfileVault _vault;
     private readonly SwitchRecoveryStore _recovery;
     private readonly AccountSwitchCoordinator _coordinator;
+    private readonly ICodexDesktopController _desktop;
     private readonly CodexAppServerClient _usageClient;
     private readonly CodexLoginClient _loginClient;
     private readonly ProfileTransferService _transfer;
@@ -32,7 +33,8 @@ public partial class MainWindow : Window
         var protector = new DpapiProtector();
         _vault = new ProfileVault(_paths, protector);
         _recovery = new SwitchRecoveryStore(_paths, protector);
-        _coordinator = new AccountSwitchCoordinator(_paths, _vault, _recovery, new CodexDesktopController());
+        _desktop = new CodexDesktopController();
+        _coordinator = new AccountSwitchCoordinator(_paths, _vault, _recovery, _desktop);
         _usageClient = new CodexAppServerClient(_paths, new CodexBinaryLocator());
         _loginClient = new CodexLoginClient(_paths, new CodexBinaryLocator());
         _transfer = new ProfileTransferService(_vault);
@@ -319,15 +321,30 @@ public partial class MainWindow : Window
             }
 
             var failures = 0;
+            var skippedActive = false;
+            var codexRunning = _desktop.HasBlockingCodexProcesses();
             for (var index = 0; index < profiles.Count; index++)
             {
                 var profile = profiles[index];
                 StatusText.Text = $"Refreshing usage {index + 1}/{profiles.Count}: {profile.DisplayName}...";
                 byte[]? auth = null;
+                byte[]? refreshedAuth = null;
                 try
                 {
+                    if (codexRunning && profile.Fingerprint == _activeFingerprint)
+                    {
+                        skippedActive = true;
+                        continue;
+                    }
+
                     auth = await _vault.ReadAuthAsync(profile.Id);
                     var snapshot = await _usageClient.ReadProfileAsync(auth);
+                    refreshedAuth = snapshot.RefreshedAuthJson;
+                    if (refreshedAuth is not null)
+                    {
+                        await _vault.UpdateAuthAsync(profile.Id, refreshedAuth);
+                    }
+
                     await _vault.UpdateUsageAsync(profile.Id, snapshot.Usage, snapshot.Email);
                 }
                 catch
@@ -337,13 +354,15 @@ public partial class MainWindow : Window
                 finally
                 {
                     if (auth is not null) CryptographicOperations.ZeroMemory(auth);
+                    if (refreshedAuth is not null) CryptographicOperations.ZeroMemory(refreshedAuth);
                 }
             }
 
             await ReloadAsync();
-            StatusText.Text = failures == 0
+            StatusText.Text = failures == 0 && !skippedActive
                 ? "Usage refreshed."
-                : $"Usage refreshed with {failures} unavailable profile{(failures == 1 ? "" : "s")}; previous data was kept.";
+                : $"Usage refreshed{(failures == 0 ? "" : $" with {failures} unavailable profile{(failures == 1 ? "" : "s")}")}; "
+                    + (skippedActive ? "the active account was skipped while Codex was running." : "previous data was kept.");
         }
         catch (Exception ex) { ShowError(ex.Message); }
         finally { SetBusy(false, StatusText.Text); }

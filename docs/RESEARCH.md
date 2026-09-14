@@ -38,3 +38,14 @@ The design responds to public failure reports, not hypothetical feature lists:
 ## Decisions
 
 These findings led to a deliberately local application: DPAPI instead of plaintext snapshots; rollback before feature breadth; exact installed-process verification; a detached one-shot worker for process lifetime isolation; no private web endpoint; no periodic prompts; no remote control; and no automatic account rotation.
+
+## Community evidence rechecked 2026-09-14
+
+Public discussions provide useful behavioral evidence, but positive comments are user reports rather than independent compatibility certification:
+
+- In [r/codex/1s3i0t6](https://www.reddit.com/r/codex/comments/1s3i0t6/a_simpler_way_to_switch_accounts_in/), commenters report using a switcher across Windows, macOS, and Linux and describe it as useful for avoiding repeated login; another commenter reports that a local load-balancer approach works with Desktop.
+- In [r/codex/1w4tl4w](https://www.reddit.com/r/codex/comments/1w4tl4w/is_2_codex_account_manageable/), users report seamless switching with a switcher when Codex is exited first and note that local chats and projects remain available after the restart.
+- In [r/codex/1waunnw](https://www.reddit.com/r/codex/comments/1waunnw/i_got_account_switching_working_in_codex_desktop_without_restarting_for_every_switch/), a Windows helper author reports testing live account changes, waiting for active work, and verifying the running engine's identity. This is a separate experimental API approach, not a reason to swap files inside a running Codex process.
+- In [r/codex/1v3d42j](https://www.reddit.com/r/codex/comments/1v3d42j/how_do_you_switch_between_multiple_accounts_in/), users confirm that native Codex Desktop still exposes only one active login, which explains why external switchers exist but also why restart boundaries matter.
+
+The negative evidence is equally important: [OpenAI Codex issue #12263](https://github.com/openai/codex/issues/12263) documents localhost callback failures and the need for a device-code alternative; [OpenAI Codex issue #39199](https://github.com/openai/codex/issues/39199) reports refresh-token invalidation in multi-account browser sessions; and [Lampese issue #113](https://github.com/Lampese/codex-switcher/issues/113) shows that a switcher can fail at startup after account metadata becomes incompatible. These findings support Vaguul's restart-before-switch rule, isolated login home, post-shutdown auth capture, persisted token rotation, metadata recovery, and explicit device-code fallback.

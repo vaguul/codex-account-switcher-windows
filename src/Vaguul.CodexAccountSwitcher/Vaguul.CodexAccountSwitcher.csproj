@@ -9,7 +9,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Vaguul.CodexAccountSwitcher</AssemblyName>
     <RootNamespace>Vaguul.CodexAccountSwitcher</RootNamespace>
-    <Version>0.2.7</Version>
+    <Version>0.2.8</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 

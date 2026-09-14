@@ -70,16 +70,25 @@ public sealed class AccountSwitchCoordinator
                 }
             }
 
-            currentAuth = await SecureFileSystem.ReadBoundedAsync(_paths.ActiveAuthPath, AuthDocument.MaximumBytes, cancellationToken);
-            var currentIdentity = AuthDocument.Validate(currentAuth);
-            var source = profiles.SingleOrDefault(profile => profile.Fingerprint == currentIdentity.Fingerprint);
-
             await _desktop.CloseAsync(cancellationToken);
             desktopClosed = true;
             if (_desktop.HasBlockingCodexProcesses())
             {
                 throw new InvalidOperationException("A Codex CLI or app-server process is still running after the automatic close attempt.");
             }
+
+            // Read after shutdown so a token refresh completed by Codex is preserved.
+            currentAuth = await SecureFileSystem.ReadBoundedAsync(_paths.ActiveAuthPath, AuthDocument.MaximumBytes, cancellationToken);
+            var currentIdentity = AuthDocument.Validate(currentAuth);
+            if (currentIdentity.Fingerprint == target.Fingerprint)
+            {
+                var reopenedAlreadyActive = await _desktop.LaunchAndVerifyAsync(cancellationToken);
+                desktopClosed = !reopenedAlreadyActive;
+                return new SwitchResult(reopenedAlreadyActive, false,
+                    reopenedAlreadyActive ? "This account was already active after Codex closed." : "This account was already active, but Codex must be opened manually.");
+            }
+
+            var source = profiles.SingleOrDefault(profile => profile.Fingerprint == currentIdentity.Fingerprint);
 
             if (source is not null)
             {

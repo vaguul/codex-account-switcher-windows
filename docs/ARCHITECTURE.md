@@ -19,10 +19,10 @@ Codex owns `%CODEX_HOME%` (normally `%USERPROFILE%\.codex`). The only Codex-owne
 2. The UI exits before Codex is closed; the scheduled worker waits for the original instance to release the mutex and then performs the switch outside Codex's process/job ancestry.
 3. The worker decrypts and validates the target profile. If its valid DPAPI snapshot is ahead of `profiles.json`, it recovers the metadata or maps it to the existing matching identity; a missing snapshot is still fatal.
 4. If the target is already active, exit without touching processes or files.
-5. Validate the active `auth.json` before shutdown. If its stable fingerprint belongs to a saved profile, refresh that profile; otherwise retain the validated active bytes only in the encrypted recovery journal for rollback.
+5. Validate the active `auth.json` before shutdown, then read it again after shutdown. If its stable fingerprint belongs to a saved profile, save the post-shutdown bytes; otherwise retain the validated active bytes only in the encrypted recovery journal for rollback.
 6. Close only a verified `ChatGPT.exe` located in the installed `OpenAI.Codex_*` package, then attempt a graceful close followed by a bounded individual close for each standalone `codex.exe`.
 7. Refuse to continue while any standalone `codex.exe` remains active.
-8. Save the departing account's latest credential snapshot.
+8. Save the departing account's latest post-shutdown credential snapshot.
 9. Write an encrypted rollback backup, then a non-secret transaction journal.
 10. Atomically replace only active `auth.json` and verify the installed fingerprint.
 11. Relaunch the verified Codex package and wait for its process.
@@ -32,13 +32,13 @@ On the next startup, an incomplete journal is never applied silently. The user i
 
 ## Usage query
 
-Usage is refreshed only when the user chooses **Refresh usage**. For each saved profile, the application creates a private temporary `CODEX_HOME`, writes the decrypted profile snapshot there, starts the installed Codex binary with `app-server --stdio`, and requests `account/rateLimits/read` over the local JSON protocol. The temporary directory is deleted after the request. No private web usage endpoint, telemetry, background polling, or refreshed token is retained by the usage feature.
+Usage is refreshed only when the user chooses **Refresh usage**. For each non-active saved profile, or for any profile when Codex is not running, the application creates a private temporary `CODEX_HOME`, writes the decrypted profile snapshot there, starts the installed Codex binary with `app-server --stdio`, and requests `account/rateLimits/read` over the local JSON protocol. The temporary directory is deleted after the request. If Codex rotates the refresh token, the validated resulting `auth.json` is encrypted back into that profile before cleanup. The active profile is skipped while Codex is running to avoid concurrent refresh-token races. No private web usage endpoint, telemetry, or background polling is used.
 
 When startup finds a valid DPAPI vault snapshot for the current active account but no matching metadata entry, it treats the snapshot as an interrupted save. The user is asked for a profile label and the existing encrypted file is adopted without copying credentials into plaintext or deleting other vault snapshots.
 
 ## Login handoff
 
-The optional browser flow invokes the installed Codex CLI as `codex login --device-auth` with a private temporary `CODEX_HOME`. The switcher does not implement or scrape the browser OAuth pages. After the CLI exits successfully, it validates the generated `auth.json`, encrypts it into the DPAPI vault, and deletes the temporary home. The existing **Save active account** path remains the primary manual alternative.
+The optional browser flow invokes the installed Codex CLI as `codex login` with a private temporary `CODEX_HOME`; the device-code action invokes `codex login --device-auth`. The switcher does not implement or scrape the OAuth pages. After the CLI exits successfully, it validates the generated `auth.json`, encrypts it into the DPAPI vault, and deletes the temporary home. The existing **Save active account** path remains available as a manual alternative.
 
 ## Portable transfer
 

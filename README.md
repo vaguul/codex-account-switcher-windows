@@ -49,7 +49,7 @@ dotnet run --project tests/Vaguul.CodexAccountSwitcher.Tests -c Release
 ./scripts/publish.ps1
 ```
 
-The 20-case test executable uses synthetic credentials and an isolated temporary directory. It never reads or changes the real Codex login.
+The 21-case test executable uses synthetic credentials and an isolated temporary directory. It never reads or changes the real Codex login.
 
 ## Security
 
@@ -57,6 +57,6 @@ Read [SECURITY.md](SECURITY.md) before reporting a vulnerability. Never attach `
 
 ## Status
 
-`0.2.7` is a Windows preview. Switching is handed off to a detached worker before Codex closes, so a switcher launched from a Codex terminal can finish safely; valid target snapshots are also recovered if metadata was briefly out of sync. Browser and device-code login are separate commands, matching Codex's current CLI contract. Recovery, usage parsing, login handoff, profile transfer, and interrupted-save recovery are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
+`0.2.8` is a Windows preview. Switching is handed off to a detached worker before Codex closes, so a switcher launched from a Codex terminal can finish safely; valid target snapshots are also recovered if metadata was briefly out of sync. Browser and device-code login are separate commands, matching Codex's current CLI contract. Usage refresh persists any validated token rotation and skips the active account while Codex is running. Recovery, usage parsing, login handoff, profile transfer, and interrupted-save recovery are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
 
 Licensed under the [MIT License](LICENSE).

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.8 - 2026-09-14
+
+- Preserve the latest outgoing `auth.json` after Codex shuts down, including refresh-token rotations completed during the session.
+- Persist validated auth updates produced by the temporary app-server usage check.
+- Skip refreshing the active account while Codex is running to avoid concurrent refresh-token races.
+- Add regression coverage for post-shutdown auth capture.
+
 ## 0.2.7 - 2026-09-14
 
 - Fix the browser add-account action to use the normal `codex login` OAuth flow instead of the device-code flag.

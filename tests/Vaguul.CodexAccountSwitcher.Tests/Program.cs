@@ -11,6 +11,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("vault encrypts credentials and metadata has no token", TestVaultAsync),
     ("duplicate account is rejected", TestDuplicateAsync),
     ("switch changes only auth.json", TestSwitchAsync),
+    ("switch saves the latest auth after shutdown", TestSwitchReadsAfterCloseAsync),
     ("failed launch rolls back auth.json", TestRollbackAsync),
     ("invalid target does not close Codex", TestInvalidTargetAsync),
     ("switch from unsaved active account", TestUnsavedSourceAsync),
@@ -137,6 +138,39 @@ static async Task TestSwitchAsync()
         var savedSource = await fixture.Vault.ReadAuthAsync(sourceProfile.Id);
         try { True(savedSource.SequenceEqual(source), "The departing account refresh was not preserved."); }
         finally { CryptographicOperations.ZeroMemory(savedSource); }
+    });
+}
+
+static async Task TestSwitchReadsAfterCloseAsync()
+{
+    await WithFixtureAsync(async fixture =>
+    {
+        var beforeClose = Auth("source", "before-close");
+        var afterClose = Auth("source", "after-close-refresh");
+        var target = Auth("target", "target-token");
+        try
+        {
+            await File.WriteAllBytesAsync(fixture.Paths.ActiveAuthPath, beforeClose);
+            var sourceProfile = await fixture.Vault.AddAsync("Source", "#4F8EF7", Auth("source", "saved-old"));
+            var targetProfile = await fixture.Vault.AddAsync("Target", "#33B679", target);
+            var desktop = new FakeDesktop(true)
+            {
+                AfterClose = () => File.WriteAllBytes(fixture.Paths.ActiveAuthPath, afterClose)
+            };
+
+            var result = await fixture.Coordinator(desktop).SwitchAsync(targetProfile.Id);
+
+            True(result.Succeeded, result.Message);
+            var savedSource = await fixture.Vault.ReadAuthAsync(sourceProfile.Id);
+            try { True(savedSource.SequenceEqual(afterClose), "The latest post-shutdown auth was not preserved."); }
+            finally { CryptographicOperations.ZeroMemory(savedSource); }
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(beforeClose);
+            CryptographicOperations.ZeroMemory(afterClose);
+            CryptographicOperations.ZeroMemory(target);
+        }
     });
 }
 
@@ -489,7 +523,8 @@ sealed class FakeDesktop(params bool[] launchResults) : ICodexDesktopController
     private readonly Queue<bool> _launchResults = new(launchResults);
     public int CloseCount { get; private set; }
     public bool Blocking { get; set; }
-    public Task CloseAsync(CancellationToken cancellationToken = default) { CloseCount++; return Task.CompletedTask; }
+    public Action? AfterClose { get; set; }
+    public Task CloseAsync(CancellationToken cancellationToken = default) { CloseCount++; AfterClose?.Invoke(); return Task.CompletedTask; }
     public bool HasBlockingCodexProcesses() => Blocking;
     public Task<bool> LaunchAndVerifyAsync(CancellationToken cancellationToken = default) => Task.FromResult(_launchResults.Count == 0 || _launchResults.Dequeue());
 }

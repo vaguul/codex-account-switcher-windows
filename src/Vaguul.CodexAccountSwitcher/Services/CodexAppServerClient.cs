@@ -20,17 +20,29 @@ public sealed class CodexAppServerClient
 
     public async Task<UsageSnapshot> ReadUsageAsync(ReadOnlyMemory<byte> authJson, CancellationToken cancellationToken = default)
     {
-        return (await ReadProfileAsync(authJson, cancellationToken)).Usage;
+        var snapshot = await ReadProfileAsync(authJson, cancellationToken);
+        try
+        {
+            return snapshot.Usage;
+        }
+        finally
+        {
+            if (snapshot.RefreshedAuthJson is not null)
+            {
+                CryptographicOperations.ZeroMemory(snapshot.RefreshedAuthJson);
+            }
+        }
     }
 
     public async Task<AppServerProfileSnapshot> ReadProfileAsync(ReadOnlyMemory<byte> authJson, CancellationToken cancellationToken = default)
     {
-        _ = AuthDocument.Validate(authJson.Span);
+        var inputIdentity = AuthDocument.Validate(authJson.Span);
         var executable = _locator.Find()
             ?? throw new InvalidOperationException("Codex CLI was not found in the local installation.");
         var temporaryHome = Path.Combine(_paths.TemporaryDirectory, Guid.NewGuid().ToString("N"));
         SecureFileSystem.CreatePrivateDirectory(temporaryHome);
         Process? process = null;
+        byte[]? refreshedAuth = null;
         try
         {
             var config = Encoding.UTF8.GetBytes("cli_auth_credentials_store = \"file\"\r\n");
@@ -74,10 +86,21 @@ public sealed class CodexAppServerClient
             process.Dispose();
             process = null;
 
+            refreshedAuth = await SecureFileSystem.ReadBoundedAsync(
+                Path.Combine(temporaryHome, "auth.json"),
+                AuthDocument.MaximumBytes,
+                cancellationToken);
+            if (AuthDocument.Validate(refreshedAuth).Fingerprint != inputIdentity.Fingerprint)
+            {
+                throw new InvalidDataException("Codex changed the account identity during the usage check.");
+            }
+
             var usage = RateLimitParser.Parse(Encoding.UTF8.GetBytes(usageResponse));
             var account = ParseAccount(accountResponse);
             usage.PlanType = account.PlanType;
-            return new AppServerProfileSnapshot(usage, account.Email);
+            var resultAuth = refreshedAuth;
+            refreshedAuth = null;
+            return new AppServerProfileSnapshot(usage, account.Email, resultAuth);
         }
         catch (JsonException)
         {
@@ -92,6 +115,10 @@ public sealed class CodexAppServerClient
             throw;
         }
         catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (InvalidDataException)
         {
             throw;
         }
@@ -111,6 +138,11 @@ public sealed class CodexAppServerClient
                 {
                     process.Dispose();
                 }
+            }
+
+            if (refreshedAuth is not null)
+            {
+                CryptographicOperations.ZeroMemory(refreshedAuth);
             }
 
             SecureFileSystem.DeleteTreeInside(temporaryHome, _paths.TemporaryDirectory);

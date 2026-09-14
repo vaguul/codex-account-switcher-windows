@@ -38,4 +38,4 @@ public sealed class UsageWindow
 }
 
 public sealed record AuthIdentity(string Fingerprint);
-public sealed record AppServerProfileSnapshot(UsageSnapshot Usage, string? Email);
+public sealed record AppServerProfileSnapshot(UsageSnapshot Usage, string? Email, byte[]? RefreshedAuthJson);
