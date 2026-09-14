@@ -13,6 +13,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("switch changes only auth.json", TestSwitchAsync),
     ("failed launch rolls back auth.json", TestRollbackAsync),
     ("invalid target does not close Codex", TestInvalidTargetAsync),
+    ("switch from unsaved active account", TestUnsavedSourceAsync),
     ("interrupted transaction recovers", TestRecoveryAsync),
     ("committed transaction reconciles without rollback", TestCommittedRecoveryAsync),
     ("trusted binary path is constrained", TestBinaryPathAsync),
@@ -162,6 +163,22 @@ static async Task TestInvalidTargetAsync()
         var result = await fixture.Coordinator(desktop).SwitchAsync(Guid.NewGuid().ToString("N"));
         True(!result.Succeeded, "An unknown profile unexpectedly switched.");
         Equal(0, desktop.CloseCount);
+    });
+}
+
+static async Task TestUnsavedSourceAsync()
+{
+    await WithFixtureAsync(async fixture =>
+    {
+        await File.WriteAllBytesAsync(fixture.Paths.ActiveAuthPath, Auth("unsaved-source"));
+        var target = await fixture.Vault.AddAsync("Target", "#33B679", Auth("target"));
+        var desktop = new FakeDesktop(true);
+
+        var result = await fixture.Coordinator(desktop).SwitchAsync(target.Id);
+
+        True(result.Succeeded && !result.RolledBack, result.Message);
+        Equal(1, desktop.CloseCount);
+        True((await File.ReadAllBytesAsync(fixture.Paths.ActiveAuthPath)).SequenceEqual(Auth("target")), "The target account was not installed.");
     });
 }
 

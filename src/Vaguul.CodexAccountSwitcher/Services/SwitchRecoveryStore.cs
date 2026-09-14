@@ -18,7 +18,7 @@ public sealed class SwitchRecoveryStore
     public bool HasPendingTransaction => File.Exists(_paths.TransactionPath);
 
     public async Task<SwitchTransaction> BeginAsync(
-        string sourceProfileId,
+        string? sourceProfileId,
         string targetProfileId,
         ReadOnlyMemory<byte> currentAuth,
         CancellationToken cancellationToken = default)

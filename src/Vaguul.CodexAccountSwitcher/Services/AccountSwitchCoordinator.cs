@@ -58,6 +58,10 @@ public sealed class AccountSwitchCoordinator
                 }
             }
 
+            currentAuth = await SecureFileSystem.ReadBoundedAsync(_paths.ActiveAuthPath, AuthDocument.MaximumBytes, cancellationToken);
+            var currentIdentity = AuthDocument.Validate(currentAuth);
+            var source = profiles.SingleOrDefault(profile => profile.Fingerprint == currentIdentity.Fingerprint);
+
             await _desktop.CloseAsync(cancellationToken);
             desktopClosed = true;
             if (_desktop.HasBlockingCodexProcesses())
@@ -65,13 +69,12 @@ public sealed class AccountSwitchCoordinator
                 throw new InvalidOperationException("A Codex CLI or app-server process is still running after the automatic close attempt.");
             }
 
-            currentAuth = await SecureFileSystem.ReadBoundedAsync(_paths.ActiveAuthPath, AuthDocument.MaximumBytes, cancellationToken);
-            var currentIdentity = AuthDocument.Validate(currentAuth);
-            var source = profiles.SingleOrDefault(profile => profile.Fingerprint == currentIdentity.Fingerprint)
-                ?? throw new InvalidOperationException("Save the currently active account before switching away from it.");
+            if (source is not null)
+            {
+                await _vault.UpdateAuthAsync(source.Id, currentAuth, cancellationToken);
+            }
 
-            await _vault.UpdateAuthAsync(source.Id, currentAuth, cancellationToken);
-            transaction = await _recovery.BeginAsync(source.Id, target.Id, currentAuth, cancellationToken);
+            transaction = await _recovery.BeginAsync(source?.Id, target.Id, currentAuth, cancellationToken);
             await SecureFileSystem.AtomicWriteAsync(_paths.ActiveAuthPath, targetAuth, cancellationToken: cancellationToken);
 
             var installed = await SecureFileSystem.ReadBoundedAsync(_paths.ActiveAuthPath, AuthDocument.MaximumBytes, cancellationToken);

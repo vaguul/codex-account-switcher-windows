@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3 - 2026-09-14
+
+- Validate the active account and its saved profile before closing Codex during a switch.
+- Allow switching from a valid active account even when it has not been saved as a profile; the recovery journal still protects rollback.
+- Add regression coverage for switching from an unsaved active account.
+
 ## 0.2.2 - 2026-09-14
 
 - Automatically close Codex Desktop and active `codex.exe` CLI/app-server processes before a confirmed account switch.

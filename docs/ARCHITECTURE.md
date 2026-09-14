@@ -19,7 +19,7 @@ Codex owns `%CODEX_HOME%` (normally `%USERPROFILE%\.codex`). The only Codex-owne
 2. If the target is already active, exit without touching processes or files.
 3. Close only a verified `ChatGPT.exe` located in the installed `OpenAI.Codex_*` package.
 4. Refuse to continue while any standalone `codex.exe` remains active.
-5. Re-read active `auth.json` after shutdown and match its stable fingerprint to a saved profile.
+5. Validate the active `auth.json` before shutdown. If its stable fingerprint belongs to a saved profile, refresh that profile; otherwise retain the validated active bytes only in the encrypted recovery journal for rollback.
 6. Save the departing account's latest credential snapshot.
 7. Write an encrypted rollback backup, then a non-secret transaction journal.
 8. Atomically replace only active `auth.json` and verify the installed fingerprint.

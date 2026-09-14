@@ -39,7 +39,7 @@ The window can be minimized to the Windows system tray. Use the tray menu to reo
 
 Use **Export profiles** to create a portable, password-encrypted package. **Import profiles** decrypts that package into the current Windows user's DPAPI vault, skips duplicate account identities, and restores saved quota metadata when present. The package password is required; it is never stored by the application.
 
-After confirmation, the application closes Codex Desktop and active Codex CLI/app-server processes before switching, then relaunches Codex Desktop. Unsaved CLI work may be lost. It refuses to switch away from an account that has not been saved, preventing an accidental loss of the only current credential snapshot.
+After confirmation, the application validates the active `auth.json`, closes Codex Desktop and active Codex CLI/app-server processes, then installs the selected profile and relaunches Codex Desktop. A validated active account does not need to be pre-saved: it is kept encrypted in the recovery journal while the switch runs. Unsaved CLI work may be lost. Save an account as a profile if you want to switch back to it later.
 
 ## Build and test
 
@@ -57,6 +57,6 @@ Read [SECURITY.md](SECURITY.md) before reporting a vulnerability. Never attach `
 
 ## Status
 
-`0.2.1` is a Windows preview. Switching, recovery, usage parsing, login handoff, profile transfer, and interrupted-save recovery are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
+`0.2.3` is a Windows preview. Switching, recovery, usage parsing, login handoff, profile transfer, and interrupted-save recovery are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
 
 Licensed under the [MIT License](LICENSE).
