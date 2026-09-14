@@ -39,7 +39,7 @@ The window can be minimized to the Windows system tray. Use the tray menu to reo
 
 Use **Export profiles** to create a portable, password-encrypted package. **Import profiles** decrypts that package into the current Windows user's DPAPI vault, skips duplicate account identities, and restores saved quota metadata when present. The package password is required; it is never stored by the application.
 
-Close standalone Codex CLI sessions before switching. The application closes and relaunches Codex Desktop only after confirmation. It refuses to switch away from an account that has not been saved, preventing an accidental loss of the only current credential snapshot.
+After confirmation, the application closes Codex Desktop and active Codex CLI/app-server processes before switching, then relaunches Codex Desktop. Unsaved CLI work may be lost. It refuses to switch away from an account that has not been saved, preventing an accidental loss of the only current credential snapshot.
 
 ## Build and test
 

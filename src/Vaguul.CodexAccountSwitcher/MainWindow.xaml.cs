@@ -125,7 +125,7 @@ public partial class MainWindow : Window
         }
 
         if (System.Windows.MessageBox.Show(
-            $"Switch to {profile.DisplayName}? Codex Desktop will close and reopen. Running CLI sessions must be closed first.",
+            $"Switch to {profile.DisplayName}? Codex Desktop, CLI sessions, and app-server processes will close and Codex will reopen. Unsaved CLI work may be lost.",
             "Confirm account switch", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
         {
             StatusText.Text = "Account switch canceled.";

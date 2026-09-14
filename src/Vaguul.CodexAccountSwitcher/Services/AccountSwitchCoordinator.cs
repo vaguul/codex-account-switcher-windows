@@ -62,7 +62,7 @@ public sealed class AccountSwitchCoordinator
             desktopClosed = true;
             if (_desktop.HasBlockingCodexProcesses())
             {
-                throw new InvalidOperationException("A Codex CLI or app-server process is still running. Close it before switching accounts.");
+                throw new InvalidOperationException("A Codex CLI or app-server process is still running after the automatic close attempt.");
             }
 
             currentAuth = await SecureFileSystem.ReadBoundedAsync(_paths.ActiveAuthPath, AuthDocument.MaximumBytes, cancellationToken);

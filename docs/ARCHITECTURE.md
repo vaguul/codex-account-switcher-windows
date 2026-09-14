@@ -44,7 +44,7 @@ Export packages contain profile labels, optional account metadata, cached usage,
 
 ## System tray
 
-The tray icon is a convenience surface, not a switching daemon. Minimizing hides the window and keeps the local process available; usage refresh is still explicit and account switching still runs its normal process checks. Closing the window exits normally, while the tray menu provides an explicit exit action.
+The tray icon is a convenience surface, not a switching daemon. Minimizing hides the window and keeps the local process available; usage refresh is still explicit. Before a confirmed switch, the desktop controller closes verified Codex Desktop processes and then attempts a graceful close followed by a bounded force-close for every `codex.exe` CLI/app-server process. Closing the window exits normally, while the tray menu provides an explicit exit action.
 
 ## File-system defenses
 

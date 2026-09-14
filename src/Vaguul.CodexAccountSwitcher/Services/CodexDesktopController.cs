@@ -38,10 +38,13 @@ public sealed class CodexDesktopController : ICodexDesktopController
             }
         }
 
+        await CloseCodexProcessesAsync(cancellationToken);
+
         if (GetVerifiedDesktopProcesses().Count != 0)
         {
             throw new InvalidOperationException("Codex Desktop did not close completely.");
         }
+
     }
 
     public bool HasBlockingCodexProcesses()
@@ -58,6 +61,43 @@ public sealed class CodexDesktopController : ICodexDesktopController
         }
 
         return false;
+    }
+
+    private static async Task CloseCodexProcessesAsync(CancellationToken cancellationToken)
+    {
+        foreach (var process in Process.GetProcessesByName("codex"))
+        {
+            using (process)
+            {
+                try
+                {
+                    if (process.HasExited)
+                    {
+                        continue;
+                    }
+
+                    _ = process.CloseMainWindow();
+                    await process.WaitForExitAsync(cancellationToken).WaitAsync(TimeSpan.FromSeconds(3), cancellationToken);
+                }
+                catch (TimeoutException)
+                {
+                    try
+                    {
+                        process.Kill(entireProcessTree: true);
+                        await process.WaitForExitAsync(cancellationToken);
+                    }
+                    catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
+                    {
+                        // The coordinator performs the final process check and reports any process that remains.
+                    }
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or UnauthorizedAccessException)
+                {
+                    // The process may have exited or become inaccessible between enumeration and close.
+                    // The coordinator performs the final process check and reports any process that remains.
+                }
+            }
+        }
     }
 
     public async Task<bool> LaunchAndVerifyAsync(CancellationToken cancellationToken = default)

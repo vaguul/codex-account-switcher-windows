@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2 - 2026-09-14
+
+- Automatically close Codex Desktop and active `codex.exe` CLI/app-server processes before a confirmed account switch.
+- Attempt a graceful process exit first, then use a bounded force-close when a process does not exit in time.
+- Clarify the confirmation warning and failure message when a process cannot be closed safely.
+
 ## 0.2.1 - 2026-09-14
 
 - Detect and recover an active DPAPI snapshot whose metadata write was interrupted, instead of silently leaving the account unavailable.

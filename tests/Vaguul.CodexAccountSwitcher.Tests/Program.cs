@@ -122,9 +122,11 @@ static async Task TestSwitchAsync()
         await File.WriteAllTextAsync(sentinel, "untouched");
         await File.WriteAllTextAsync(Path.Combine(fixture.Paths.CodexHome, "config.toml"), "model='keep'");
 
-        var result = await fixture.Coordinator(new FakeDesktop(true)).SwitchAsync(targetProfile.Id);
+        var desktop = new FakeDesktop(true);
+        var result = await fixture.Coordinator(desktop).SwitchAsync(targetProfile.Id);
 
         True(result.Succeeded && !result.RolledBack, result.Message);
+        Equal(1, desktop.CloseCount);
         True((await File.ReadAllBytesAsync(fixture.Paths.ActiveAuthPath)).SequenceEqual(target), "Target auth was not installed.");
         Equal("untouched", await File.ReadAllTextAsync(sentinel));
         Equal("model='keep'", await File.ReadAllTextAsync(Path.Combine(fixture.Paths.CodexHome, "config.toml")));
