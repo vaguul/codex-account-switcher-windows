@@ -9,5 +9,8 @@
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
+        <Style TargetType="ListBoxItem">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        </Style>
     </Application.Resources>
 </Application>

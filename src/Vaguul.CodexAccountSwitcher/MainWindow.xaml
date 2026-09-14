@@ -45,7 +45,7 @@
             </Grid>
         </Border>
 
-        <ListBox Grid.Row="2" x:Name="ProfileList" Background="Transparent" BorderThickness="0"
+        <ListBox Grid.Row="2" x:Name="ProfileList" SelectionChanged="ProfileList_SelectionChanged" Background="Transparent" BorderThickness="0"
                  Foreground="#F5F7F8" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemContainerStyle>
                 <Style TargetType="ListBoxItem">
@@ -68,7 +68,7 @@
                                 <TextBlock Text="{Binding DisplayName}" FontSize="16" FontWeight="SemiBold"/>
                                 <TextBlock Text="Protected by Windows DPAPI" FontSize="12" Foreground="#8E979F" Margin="0,4,0,0"/>
                             </StackPanel>
-                            <TextBlock Grid.Column="2" Text="SELECT" Foreground="#8E979F" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" x:Name="ProfileStateText" Text="SELECT" Foreground="#8E979F" FontSize="10" FontWeight="Bold" VerticalAlignment="Center"/>
                         </Grid>
                     </Border>
                 </DataTemplate>
@@ -81,9 +81,9 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Button Content="Delete" Click="DeleteButton_Click" Background="Transparent" Foreground="#F4A6A6" BorderBrush="#684040"/>
+            <Button x:Name="DeleteButton" Content="Delete" Click="DeleteButton_Click" Background="Transparent" Foreground="#F4A6A6" BorderBrush="#684040"/>
             <TextBlock Grid.Column="1" x:Name="StatusText" Text="Ready" Foreground="#8E979F" VerticalAlignment="Center" Margin="16,0" TextTrimming="CharacterEllipsis"/>
-            <Button Grid.Column="2" Content="Switch to selected" Click="SwitchButton_Click" Background="#2563EB" Foreground="White" BorderThickness="0"/>
+            <Button Grid.Column="2" x:Name="SwitchButton" Content="Switch to selected" Click="SwitchButton_Click" Background="#2563EB" Foreground="White" BorderThickness="0"/>
         </Grid>
     </Grid>
 </Window>

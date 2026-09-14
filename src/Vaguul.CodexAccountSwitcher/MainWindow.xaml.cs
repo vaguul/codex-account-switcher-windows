@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using Vaguul.CodexAccountSwitcher.Models;
 using Vaguul.CodexAccountSwitcher.Services;
@@ -13,6 +14,8 @@ public partial class MainWindow : Window
     private readonly ProfileVault _vault;
     private readonly SwitchRecoveryStore _recovery;
     private readonly AccountSwitchCoordinator _coordinator;
+    private string? _activeFingerprint;
+    private bool _busy;
 
     public MainWindow()
     {
@@ -97,6 +100,7 @@ public partial class MainWindow : Window
                 MessageBox.Show(result.Message, "Account switch", MessageBoxButton.OK, MessageBoxImage.Warning);
             await ReloadAsync();
         }
+        catch (Exception ex) { ShowError(ex.Message); }
         finally { SetBusy(false, StatusText.Text); }
     }
 
@@ -125,16 +129,29 @@ public partial class MainWindow : Window
         catch (Exception ex) { ShowError(ex.Message); }
     }
 
-    private async void RefreshButton_Click(object sender, RoutedEventArgs e) => await ReloadAsync();
+    private async void RefreshButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            SetBusy(true, "Refreshing...");
+            await ReloadAsync();
+        }
+        catch (Exception ex) { ShowError(ex.Message); }
+        finally { SetBusy(false, StatusText.Text); }
+    }
+
+    private void ProfileList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateSelectionState();
 
     private async Task ReloadAsync()
     {
         var profiles = await _vault.GetProfilesAsync();
         ProfileList.ItemsSource = profiles;
         var fingerprint = await GetActiveFingerprintAsync();
+        _activeFingerprint = fingerprint;
         var active = profiles.FirstOrDefault(profile => profile.Fingerprint == fingerprint);
         ActiveAccountText.Text = active?.DisplayName ?? (fingerprint is null ? "No valid login detected" : "Active account is not saved");
         ActiveDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(active?.ColorHex ?? "#6B737B"));
+        UpdateSelectionState();
     }
 
     private async Task<string?> GetActiveFingerprintAsync()
@@ -152,9 +169,34 @@ public partial class MainWindow : Window
 
     private void SetBusy(bool busy, string status)
     {
+        _busy = busy;
         SaveActiveButton.IsEnabled = !busy;
         ProfileList.IsEnabled = !busy;
+        DeleteButton.IsEnabled = !busy;
+        SwitchButton.IsEnabled = !busy;
+        if (!busy) UpdateSelectionState();
         StatusText.Text = status;
+    }
+
+    private void UpdateSelectionState()
+    {
+        if (_busy || ProfileList.SelectedItem is not AccountProfile profile)
+        {
+            if (!_busy)
+            {
+                DeleteButton.IsEnabled = ProfileList.SelectedItem is AccountProfile;
+                SwitchButton.Content = "Switch to selected";
+            }
+            return;
+        }
+
+        var isActive = string.Equals(profile.Fingerprint, _activeFingerprint, StringComparison.Ordinal);
+        DeleteButton.IsEnabled = !isActive;
+        SwitchButton.IsEnabled = !isActive;
+        SwitchButton.Content = isActive ? "Already active" : "Switch to selected";
+        StatusText.Text = isActive
+            ? "This account is already active. Save another account to switch."
+            : $"Ready to switch to {profile.DisplayName}.";
     }
 
     private void ShowError(string message)

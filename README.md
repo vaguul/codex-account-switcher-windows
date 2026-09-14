@@ -49,6 +49,6 @@ Read [SECURITY.md](SECURITY.md) before reporting a vulnerability. Never attach `
 
 ## Status
 
-`0.1.0` is an initial Windows preview. The switching and recovery paths are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
+`0.1.1` is a Windows preview. The switching and recovery paths are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
 
 Licensed under the [MIT License](LICENSE).
