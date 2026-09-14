@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.9 - 2026-09-14
+
+- Treat a `ChatGPT.exe` process that exits during inspection as a normal Windows process-list race instead of aborting the switch.
+- Verify packaged ChatGPT child processes by executable path and close them safely before replacing `auth.json`.
+- Keep relaunch verification restricted to a packaged ChatGPT process with a real main window.
+- Add regression coverage for transient process-inspection races.
+
 ## 0.2.8 - 2026-09-14
 
 - Preserve the latest outgoing `auth.json` after Codex shuts down, including refresh-token rotations completed during the session.

@@ -15,20 +15,54 @@ public sealed class CodexDesktopController : ICodexDesktopController
 
     public async Task CloseAsync(CancellationToken cancellationToken = default)
     {
-        var processes = GetVerifiedDesktopProcesses();
+        var processes = GetVerifiedDesktopProcesses(requireMainWindow: false);
         foreach (var process in processes)
         {
             using (process)
             {
-                if (process.HasExited)
+                if (IsProcessInspectionRace(process))
                 {
                     continue;
                 }
 
-                _ = process.CloseMainWindow();
+                IntPtr mainWindowHandle;
                 try
                 {
-                    await process.WaitForExitAsync(cancellationToken).WaitAsync(TimeSpan.FromSeconds(8), cancellationToken);
+                    mainWindowHandle = process.MainWindowHandle;
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+                {
+                    if (IsProcessInspectionRace(process))
+                    {
+                        continue;
+                    }
+
+                    throw new InvalidOperationException("A ChatGPT process could not be verified safely. Close it manually and retry.", ex);
+                }
+
+                if (mainWindowHandle != IntPtr.Zero)
+                {
+                    try
+                    {
+                        _ = process.CloseMainWindow();
+                    }
+                    catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+                    {
+                        if (IsProcessInspectionRace(process))
+                        {
+                            continue;
+                        }
+
+                        throw new InvalidOperationException("A ChatGPT process could not be closed safely. Close it manually and retry.", ex);
+                    }
+                }
+
+                try
+                {
+                    var timeout = mainWindowHandle == IntPtr.Zero
+                        ? TimeSpan.FromSeconds(1)
+                        : TimeSpan.FromSeconds(8);
+                    await process.WaitForExitAsync(cancellationToken).WaitAsync(timeout, cancellationToken);
                 }
                 catch (TimeoutException)
                 {
@@ -40,17 +74,28 @@ public sealed class CodexDesktopController : ICodexDesktopController
 
         await CloseCodexProcessesAsync(cancellationToken);
 
-        if (GetVerifiedDesktopProcesses().Count != 0)
+        var remainingProcesses = GetVerifiedDesktopProcesses(requireMainWindow: false);
+        try
         {
-            throw new InvalidOperationException("Codex Desktop did not close completely.");
+            if (remainingProcesses.Count != 0)
+            {
+                throw new InvalidOperationException("Codex Desktop did not close completely.");
+            }
+        }
+        finally
+        {
+            foreach (var process in remainingProcesses)
+            {
+                process.Dispose();
+            }
         }
 
     }
 
     public bool HasBlockingCodexProcesses()
     {
-        var desktopProcesses = GetVerifiedDesktopProcesses();
-        var desktopRunning = desktopProcesses.Any(process => !process.HasExited);
+        var desktopProcesses = GetVerifiedDesktopProcesses(requireMainWindow: false);
+        var desktopRunning = desktopProcesses.Any(process => !IsProcessInspectionRace(process));
         foreach (var process in desktopProcesses)
         {
             process.Dispose();
@@ -124,7 +169,7 @@ public sealed class CodexDesktopController : ICodexDesktopController
         while (DateTimeOffset.UtcNow < deadline)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var processes = GetVerifiedDesktopProcesses();
+            var processes = GetVerifiedDesktopProcesses(requireMainWindow: true);
             var running = processes.Any(process => !process.HasExited);
             foreach (var process in processes)
             {
@@ -142,7 +187,23 @@ public sealed class CodexDesktopController : ICodexDesktopController
         return false;
     }
 
-    private static List<Process> GetVerifiedDesktopProcesses()
+    internal static bool IsProcessInspectionRace(Process process)
+    {
+        try
+        {
+            return process.HasExited;
+        }
+        catch (InvalidOperationException)
+        {
+            return true;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
+    }
+
+    private static List<Process> GetVerifiedDesktopProcesses(bool requireMainWindow)
     {
         var windowsApps = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "WindowsApps")
             + Path.DirectorySeparatorChar;
@@ -151,13 +212,20 @@ public sealed class CodexDesktopController : ICodexDesktopController
         {
             try
             {
+                // Read the executable identity before window state. Child processes may not own a window.
+                if (process.HasExited)
+                {
+                    process.Dispose();
+                    continue;
+                }
+
                 var path = process.MainModule?.FileName ?? string.Empty;
                 var fullPath = Path.GetFullPath(path);
                 var relative = Path.GetRelativePath(windowsApps, fullPath);
                 if (!relative.StartsWith("..", StringComparison.Ordinal)
                     && relative.StartsWith("OpenAI.Codex_", StringComparison.OrdinalIgnoreCase)
                     && Path.GetFileName(fullPath).Equals("ChatGPT.exe", StringComparison.OrdinalIgnoreCase)
-                    && process.MainWindowHandle != IntPtr.Zero)
+                    && (!requireMainWindow || process.MainWindowHandle != IntPtr.Zero))
                 {
                     result.Add(process);
                     continue;
@@ -165,6 +233,12 @@ public sealed class CodexDesktopController : ICodexDesktopController
             }
             catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
             {
+                if (IsProcessInspectionRace(process))
+                {
+                    process.Dispose();
+                    continue;
+                }
+
                 process.Dispose();
                 throw new InvalidOperationException("A ChatGPT process could not be verified safely. Close it manually and retry.", ex);
             }

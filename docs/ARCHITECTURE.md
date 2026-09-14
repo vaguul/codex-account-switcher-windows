@@ -20,7 +20,7 @@ Codex owns `%CODEX_HOME%` (normally `%USERPROFILE%\.codex`). The only Codex-owne
 3. The worker decrypts and validates the target profile. If its valid DPAPI snapshot is ahead of `profiles.json`, it recovers the metadata or maps it to the existing matching identity; a missing snapshot is still fatal.
 4. If the target is already active, exit without touching processes or files.
 5. Validate the active `auth.json` before shutdown, then read it again after shutdown. If its stable fingerprint belongs to a saved profile, save the post-shutdown bytes; otherwise retain the validated active bytes only in the encrypted recovery journal for rollback.
-6. Close only a verified `ChatGPT.exe` located in the installed `OpenAI.Codex_*` package, then attempt a graceful close followed by a bounded individual close for each standalone `codex.exe`.
+6. Close only verified `ChatGPT.exe` processes located in the installed `OpenAI.Codex_*` package. Request a graceful close for the main-window process, then use bounded individual closes for package child processes and standalone `codex.exe` processes. A process that exits during inspection is ignored as a normal Windows race; a still-running process whose identity cannot be verified remains a hard stop.
 7. Refuse to continue while any standalone `codex.exe` remains active.
 8. Save the departing account's latest post-shutdown credential snapshot.
 9. Write an encrypted rollback backup, then a non-secret transaction journal.
@@ -46,7 +46,7 @@ Export packages contain profile labels, optional account metadata, cached usage,
 
 ## System tray
 
-The tray icon is a convenience surface, not a switching daemon. Minimizing hides the window and keeps the local process available; usage refresh is still explicit. A confirmed switch is handed to a one-shot detached worker before Codex closes, so a switcher launched from Codex's terminal is not a descendant that Codex can terminate. The worker closes the verified Codex Desktop window and then attempts a graceful close followed by a bounded individual close for every `codex.exe` CLI/app-server process. Closing the window exits normally, while the tray menu provides an explicit exit action.
+The tray icon is a convenience surface, not a switching daemon. Minimizing hides the window and keeps the local process available; usage refresh is still explicit. A confirmed switch is handed to a one-shot detached worker before Codex closes, so a switcher launched from Codex's terminal is not a descendant that Codex can terminate. The worker closes verified ChatGPT processes from the installed package, using the main window when available and a bounded individual close for child processes, then handles every `codex.exe` CLI/app-server process. Closing the window exits normally, while the tray menu provides an explicit exit action.
 
 ## File-system defenses
 

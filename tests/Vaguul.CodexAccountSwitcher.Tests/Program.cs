@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using Vaguul.CodexAccountSwitcher.Models;
@@ -25,7 +26,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("orphaned active snapshot is recoverable", TestOrphanRecoveryAsync),
     ("detached switch task arguments are constrained", TestSwitchTaskArguments),
     ("orphaned target snapshot is recovered before switching", TestOrphanTargetAsync),
-    ("browser and device login commands stay separate", TestLoginCommands)
+    ("browser and device login commands stay separate", TestLoginCommands),
+    ("exited ChatGPT inspection races are ignored", TestProcessInspectionRaceAsync)
 };
 
 var failures = 0;
@@ -61,6 +63,20 @@ static Task TestInvalidAuthAsync()
     Throws<InvalidDataException>(() => AuthDocument.Validate("{}"u8));
     Throws<System.Text.Json.JsonException>(() => AuthDocument.Validate("not-json"u8));
     return Task.CompletedTask;
+}
+
+static async Task TestProcessInspectionRaceAsync()
+{
+    using var process = Process.Start(new ProcessStartInfo
+    {
+        FileName = "cmd.exe",
+        Arguments = "/c exit 0",
+        UseShellExecute = false,
+        CreateNoWindow = true
+    }) ?? throw new InvalidOperationException("Could not start the process fixture.");
+
+    await process.WaitForExitAsync();
+    True(CodexDesktopController.IsProcessInspectionRace(process), "An exited process was treated as an unsafe live process.");
 }
 
 static Task TestDpapiAsync()
