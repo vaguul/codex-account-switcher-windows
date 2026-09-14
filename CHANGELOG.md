@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.7 - 2026-09-14
+
+- Fix the browser add-account action to use the normal `codex login` OAuth flow instead of the device-code flag.
+- Add a separate device-code action for `codex login --device-auth`.
+- Add regression coverage that keeps both login command shapes distinct.
+
 ## 0.2.6 - 2026-09-14
 
 - Recover a valid target DPAPI snapshot when its metadata write was interrupted or temporarily out of sync, instead of reporting that the selected profile no longer exists.

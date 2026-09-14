@@ -33,7 +33,7 @@ The evidence behind these choices is recorded in [docs/RESEARCH.md](docs/RESEARC
 4. Select a saved profile and choose **Switch to selected**.
 5. Choose **Refresh usage** to query the saved profiles through Codex's local `app-server` protocol. The card shows each returned quota window and keeps the previous snapshot if a profile is temporarily unavailable.
 
-You can also choose **Add account with browser**. It runs Codex's supported `login --device-auth` flow in an isolated temporary home, opens the browser login, and saves the resulting account only after you give it a profile name. The original active-account save flow remains available.
+You can also add a new account without changing the active one. **Add account with browser** runs the normal Codex `login` OAuth flow in an isolated temporary home; **Add with device code** runs Codex's `login --device-auth` flow for environments where the local browser callback is unavailable. Both flows save the resulting account only after you give it a profile name. The original active-account save flow remains available.
 
 The window can be minimized to the Windows system tray. Use the tray menu to reopen the switcher, refresh usage, or exit it completely.
 
@@ -49,7 +49,7 @@ dotnet run --project tests/Vaguul.CodexAccountSwitcher.Tests -c Release
 ./scripts/publish.ps1
 ```
 
-The 19-case test executable uses synthetic credentials and an isolated temporary directory. It never reads or changes the real Codex login.
+The 20-case test executable uses synthetic credentials and an isolated temporary directory. It never reads or changes the real Codex login.
 
 ## Security
 
@@ -57,6 +57,6 @@ Read [SECURITY.md](SECURITY.md) before reporting a vulnerability. Never attach `
 
 ## Status
 
-`0.2.6` is a Windows preview. Switching is handed off to a detached worker before Codex closes, so a switcher launched from a Codex terminal can finish safely; valid target snapshots are also recovered if metadata was briefly out of sync. Recovery, usage parsing, login handoff, profile transfer, and interrupted-save recovery are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
+`0.2.7` is a Windows preview. Switching is handed off to a detached worker before Codex closes, so a switcher launched from a Codex terminal can finish safely; valid target snapshots are also recovered if metadata was briefly out of sync. Browser and device-code login are separate commands, matching Codex's current CLI contract. Recovery, usage parsing, login handoff, profile transfer, and interrupted-save recovery are tested with synthetic profiles, but the project is unsigned and cannot promise compatibility with every future Codex package change.
 
 Licensed under the [MIT License](LICENSE).

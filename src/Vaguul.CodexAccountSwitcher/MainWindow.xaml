@@ -34,6 +34,9 @@
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,16,0,0">
             <Button x:Name="BrowserLoginButton" Content="Add account with browser" Click="BrowserLoginButton_Click"
                     Background="Transparent" Foreground="#DCE1E5" BorderBrush="#4A5158"/>
+            <Button x:Name="DeviceLoginButton" Content="Add with device code" Click="DeviceLoginButton_Click"
+                    Background="Transparent" Foreground="#DCE1E5" BorderBrush="#4A5158" Margin="8,0,0,0"
+                    ToolTip="Use Codex device authorization when browser callback login is unavailable."/>
             <Button x:Name="ExportButton" Content="Export profiles" Click="ExportButton_Click"
                     Background="Transparent" Foreground="#DCE1E5" BorderBrush="#4A5158" Margin="8,0,0,0"/>
             <Button x:Name="ImportButton" Content="Import profiles" Click="ImportButton_Click"

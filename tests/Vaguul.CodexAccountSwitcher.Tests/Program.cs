@@ -23,7 +23,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("profile transfer encrypts and imports", TestProfileTransferAsync),
     ("orphaned active snapshot is recoverable", TestOrphanRecoveryAsync),
     ("detached switch task arguments are constrained", TestSwitchTaskArguments),
-    ("orphaned target snapshot is recovered before switching", TestOrphanTargetAsync)
+    ("orphaned target snapshot is recovered before switching", TestOrphanTargetAsync),
+    ("browser and device login commands stay separate", TestLoginCommands)
 };
 
 var failures = 0;
@@ -404,6 +405,22 @@ static Task TestSwitchTaskArguments()
     True(!SwitchTaskLauncher.TryParse(
         ["--complete-switch", profileId, "--task-name", taskName, "extra"],
         out _), "Extra worker arguments were accepted.");
+    return Task.CompletedTask;
+}
+
+static Task TestLoginCommands()
+{
+    var executable = @"C:\Tools\codex.exe";
+    var temporaryHome = Path.Combine(Path.GetTempPath(), "vaguul-login-test");
+    var browser = CodexLoginClient.BuildStartInfo(executable, temporaryHome, CodexLoginMode.Browser);
+    Equal(1, browser.ArgumentList.Count);
+    Equal("login", browser.ArgumentList[0]);
+    Equal(temporaryHome, browser.Environment["CODEX_HOME"]);
+
+    var device = CodexLoginClient.BuildStartInfo(executable, temporaryHome, CodexLoginMode.DeviceCode);
+    Equal(2, device.ArgumentList.Count);
+    Equal("login", device.ArgumentList[0]);
+    Equal("--device-auth", device.ArgumentList[1]);
     return Task.CompletedTask;
 }
 

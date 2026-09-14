@@ -157,22 +157,33 @@ public partial class MainWindow : Window
 
     private async void BrowserLoginButton_Click(object sender, RoutedEventArgs e)
     {
+        await LoginButton_ClickAsync(CodexLoginMode.Browser);
+    }
+
+    private async void DeviceLoginButton_Click(object sender, RoutedEventArgs e)
+    {
+        await LoginButton_ClickAsync(CodexLoginMode.DeviceCode);
+    }
+
+    private async Task LoginButton_ClickAsync(CodexLoginMode mode)
+    {
         byte[]? auth = null;
         try
         {
-            SetBusy(true, "Waiting for browser sign-in...");
-            auth = await _loginClient.LoginAsync();
+            var method = mode == CodexLoginMode.Browser ? "browser" : "device-code";
+            SetBusy(true, $"Waiting for Codex {method} sign-in...");
+            auth = await _loginClient.LoginAsync(mode);
             var dialog = new AccountNameDialog { Owner = this };
             if (dialog.ShowDialog() != true)
             {
-                StatusText.Text = "Browser sign-in canceled after authentication.";
+                StatusText.Text = "Sign-in canceled after authentication.";
                 return;
             }
 
             var count = (await _vault.GetProfilesAsync()).Count;
             await _vault.AddAsync(dialog.AccountName, Colors[count % Colors.Length], auth);
             await ReloadAsync();
-            StatusText.Text = "Browser account saved securely.";
+            StatusText.Text = "Account saved securely.";
         }
         catch (Exception ex) { ShowError(ex.Message); }
         finally
@@ -386,6 +397,7 @@ public partial class MainWindow : Window
         _busy = busy;
         SaveActiveButton.IsEnabled = !busy;
         BrowserLoginButton.IsEnabled = !busy;
+        DeviceLoginButton.IsEnabled = !busy;
         ExportButton.IsEnabled = !busy;
         ImportButton.IsEnabled = !busy;
         ProfileList.IsEnabled = !busy;

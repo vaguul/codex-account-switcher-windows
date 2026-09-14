@@ -14,7 +14,10 @@ public sealed class CodexLoginClient
         _locator = locator;
     }
 
-    public async Task<byte[]> LoginAsync(CancellationToken cancellationToken = default)
+    public Task<byte[]> LoginAsync(CancellationToken cancellationToken = default) =>
+        LoginAsync(CodexLoginMode.Browser, cancellationToken);
+
+    public async Task<byte[]> LoginAsync(CodexLoginMode mode, CancellationToken cancellationToken = default)
     {
         var executable = _locator.Find()
             ?? throw new InvalidOperationException("Codex CLI was not found in the local installation.");
@@ -27,11 +30,12 @@ public sealed class CodexLoginClient
             var config = Encoding.UTF8.GetBytes("cli_auth_credentials_store = \"file\"\r\n");
             await SecureFileSystem.AtomicWriteAsync(Path.Combine(temporaryHome, "config.toml"), config, cancellationToken: cancellationToken);
 
-            process = Start(executable, temporaryHome);
+            process = Start(executable, temporaryHome, mode);
             await process.WaitForExitAsync(cancellationToken);
             if (process.ExitCode != 0)
             {
-                throw new InvalidOperationException("Browser sign-in did not complete successfully.");
+                var method = mode == CodexLoginMode.Browser ? "browser" : "device-code";
+                throw new InvalidOperationException($"Codex {method} sign-in was canceled or did not complete successfully.");
             }
 
             var authPath = Path.Combine(temporaryHome, "auth.json");
@@ -66,25 +70,35 @@ public sealed class CodexLoginClient
         }
     }
 
-    private static Process Start(string executable, string temporaryHome)
+    internal static ProcessStartInfo BuildStartInfo(string executable, string temporaryHome, CodexLoginMode mode)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = executable,
+            UseShellExecute = false,
+            CreateNoWindow = false,
+            WorkingDirectory = temporaryHome
+        };
+        startInfo.ArgumentList.Add("login");
+        if (mode == CodexLoginMode.DeviceCode)
+        {
+            startInfo.ArgumentList.Add("--device-auth");
+        }
+
+        startInfo.Environment["CODEX_HOME"] = temporaryHome;
+        return startInfo;
+    }
+
+    private static Process Start(string executable, string temporaryHome, CodexLoginMode mode)
     {
         var process = new Process
         {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = executable,
-                UseShellExecute = false,
-                CreateNoWindow = false,
-                WorkingDirectory = temporaryHome
-            }
+            StartInfo = BuildStartInfo(executable, temporaryHome, mode)
         };
-        process.StartInfo.ArgumentList.Add("login");
-        process.StartInfo.ArgumentList.Add("--device-auth");
-        process.StartInfo.Environment["CODEX_HOME"] = temporaryHome;
         if (!process.Start())
         {
             process.Dispose();
-            throw new InvalidOperationException("Codex browser sign-in could not be started.");
+            throw new InvalidOperationException("Codex sign-in could not be started.");
         }
 
         return process;
