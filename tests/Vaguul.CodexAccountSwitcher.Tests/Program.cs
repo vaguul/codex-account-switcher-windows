@@ -27,7 +27,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("detached switch task arguments are constrained", TestSwitchTaskArguments),
     ("orphaned target snapshot is recovered before switching", TestOrphanTargetAsync),
     ("browser and device login commands stay separate", TestLoginCommands),
-    ("exited ChatGPT inspection races are ignored", TestProcessInspectionRaceAsync)
+    ("exited ChatGPT inspection races are ignored", TestProcessInspectionRaceAsync),
+    ("missing temporary auth snapshots are tolerated", TestMissingTemporaryAuthAsync),
+    ("profile snapshots with renamed IDs are repaired", TestMissingProfileSnapshotRepairAsync)
 };
 
 var failures = 0;
@@ -77,6 +79,39 @@ static async Task TestProcessInspectionRaceAsync()
 
     await process.WaitForExitAsync();
     True(CodexDesktopController.IsProcessInspectionRace(process), "An exited process was treated as an unsafe live process.");
+}
+
+static async Task TestMissingTemporaryAuthAsync()
+{
+    var path = Path.Combine(Path.GetTempPath(), "vaguul-missing-auth-" + Guid.NewGuid().ToString("N"), "auth.json");
+    var result = await CodexAppServerClient.TryReadAuthSnapshotAsync(path);
+    True(result is null, "A missing temporary auth snapshot was not treated as optional.");
+}
+
+static async Task TestMissingProfileSnapshotRepairAsync()
+{
+    await WithFixtureAsync(async fixture =>
+    {
+        var auth = Auth("renamed-profile", "renamed-secret");
+        try
+        {
+            var profile = await fixture.Vault.AddAsync("Renamed", "#4F8EF7", auth);
+            var expectedPath = Path.Combine(fixture.Paths.VaultDirectory, profile.Id + ".auth.dpapi");
+            var orphanPath = Path.Combine(fixture.Paths.VaultDirectory, Guid.NewGuid().ToString("N") + ".auth.dpapi");
+            File.Move(expectedPath, orphanPath);
+
+            Equal(1, await fixture.Vault.RepairMissingSnapshotsAsync());
+            var restored = await fixture.Vault.ReadAuthAsync(profile.Id);
+            try { True(restored.SequenceEqual(auth), "The renamed encrypted profile snapshot was not repaired."); }
+            finally { CryptographicOperations.ZeroMemory(restored); }
+            True(File.Exists(orphanPath), "The original orphaned snapshot was deleted.");
+            Equal(0, await fixture.Vault.RepairMissingSnapshotsAsync());
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(auth);
+        }
+    });
 }
 
 static Task TestDpapiAsync()

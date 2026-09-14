@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.11 - 2026-09-14
+
+- Repair metadata entries whose encrypted DPAPI snapshot was left under a different valid profile ID.
+- Preserve the original encrypted candidate and repair only when its stable account identity matches exactly.
+- Avoid failing usage refresh when Codex removes its temporary auth file during shutdown.
+- Add regression coverage for profile-snapshot repair.
+
+## 0.2.10 - 2026-09-14
+
+- Treat a `ChatGPT.exe` process that exits during inspection as a normal Windows process-list race instead of aborting the switch.
+- Verify packaged ChatGPT child processes by executable path and close them safely before replacing `auth.json`.
+- Keep relaunch verification restricted to a packaged ChatGPT process with a real main window.
+- Capture temporary auth before stopping `app-server`, which avoids losing a successful usage check when Codex removes the file during shutdown.
+- Repair a profile whose metadata ID no longer matches its encrypted DPAPI snapshot when the stable account identity matches exactly.
+- Add regression coverage for transient process-inspection races.
+- Add regression coverage for missing temporary auth snapshots.
+
 ## 0.2.9 - 2026-09-14
 
 - Treat a `ChatGPT.exe` process that exits during inspection as a normal Windows process-list race instead of aborting the switch.

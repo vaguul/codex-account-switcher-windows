@@ -165,6 +165,72 @@ public sealed class ProfileVault
         }
     }
 
+    public async Task<int> RepairMissingSnapshotsAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            var profiles = await LoadMetadataCoreAsync(cancellationToken);
+            var metadataIds = profiles.Select(profile => profile.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var claimedCandidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var repaired = 0;
+
+            foreach (var profile in profiles.Where(profile => !File.Exists(GetVaultPath(profile.Id))))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                foreach (var candidatePath in Directory.EnumerateFiles(_paths.VaultDirectory, "*.auth.dpapi", SearchOption.TopDirectoryOnly))
+                {
+                    var fileName = Path.GetFileName(candidatePath);
+                    const string suffix = ".auth.dpapi";
+                    if (!fileName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var candidateId = fileName[..^suffix.Length];
+                    if (!Guid.TryParseExact(candidateId, "N", out _)
+                        || metadataIds.Contains(candidateId)
+                        || claimedCandidates.Contains(candidatePath))
+                    {
+                        continue;
+                    }
+
+                    byte[]? encrypted = null;
+                    byte[]? auth = null;
+                    try
+                    {
+                        encrypted = await SecureFileSystem.ReadBoundedAsync(candidatePath, AuthDocument.MaximumBytes * 2, cancellationToken);
+                        auth = _protector.Unprotect(encrypted);
+                        if (AuthDocument.Validate(auth).Fingerprint != profile.Fingerprint)
+                        {
+                            continue;
+                        }
+
+                        claimedCandidates.Add(candidatePath);
+                        await SecureFileSystem.AtomicWriteAsync(GetVaultPath(profile.Id), encrypted, cancellationToken: cancellationToken);
+                        repaired++;
+                        break;
+                    }
+                    catch (Exception ex) when (ex is CryptographicException or JsonException or InvalidDataException or FileNotFoundException)
+                    {
+                        // Ignore invalid, incomplete, or concurrently removed candidates.
+                    }
+                    finally
+                    {
+                        if (encrypted is not null) CryptographicOperations.ZeroMemory(encrypted);
+                        if (auth is not null) CryptographicOperations.ZeroMemory(auth);
+                    }
+                }
+            }
+
+            return repaired;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task<AccountProfile> AdoptOrphanAsync(
         string profileId,
         string displayName,

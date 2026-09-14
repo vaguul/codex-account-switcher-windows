@@ -46,9 +46,11 @@ public partial class MainWindow : Window
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
+        var repairedSnapshots = 0;
         try
         {
             _vault.Initialize();
+            repairedSnapshots = await _vault.RepairMissingSnapshotsAsync();
             if (_recovery.HasPendingTransaction)
             {
                 var answer = System.Windows.MessageBox.Show(
@@ -65,6 +67,10 @@ public partial class MainWindow : Window
 
             await RecoverOrphanedActiveAsync();
             await ReloadAsync();
+            if (repairedSnapshots > 0)
+            {
+                StatusText.Text = $"Recovered {repairedSnapshots} encrypted profile snapshot{(repairedSnapshots == 1 ? "" : "s")}.";
+            }
         }
         catch (Exception ex) { ShowError(ex.Message); }
         finally { SetBusy(false, StatusText.Text); }

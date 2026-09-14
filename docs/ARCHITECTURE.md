@@ -32,9 +32,11 @@ On the next startup, an incomplete journal is never applied silently. The user i
 
 ## Usage query
 
-Usage is refreshed only when the user chooses **Refresh usage**. For each non-active saved profile, or for any profile when Codex is not running, the application creates a private temporary `CODEX_HOME`, writes the decrypted profile snapshot there, starts the installed Codex binary with `app-server --stdio`, and requests `account/rateLimits/read` over the local JSON protocol. The temporary directory is deleted after the request. If Codex rotates the refresh token, the validated resulting `auth.json` is encrypted back into that profile before cleanup. The active profile is skipped while Codex is running to avoid concurrent refresh-token races. No private web usage endpoint, telemetry, or background polling is used.
+Usage is refreshed only when the user chooses **Refresh usage**. For each non-active saved profile, or for any profile when Codex is not running, the application creates a private temporary `CODEX_HOME`, writes the decrypted profile snapshot there, starts the installed Codex binary with `app-server --stdio`, and requests `account/rateLimits/read` over the local JSON protocol. The temporary auth snapshot is captured while `app-server` is still running so a graceful shutdown that removes the file cannot turn a successful usage response into a failure. The temporary directory is deleted after the request. If Codex rotates the refresh token, the validated resulting `auth.json` is encrypted back into that profile before cleanup. The active profile is skipped while Codex is running to avoid concurrent refresh-token races. No private web usage endpoint, telemetry, or background polling is used.
 
 When startup finds a valid DPAPI vault snapshot for the current active account but no matching metadata entry, it treats the snapshot as an interrupted save. The user is asked for a profile label and the existing encrypted file is adopted without copying credentials into plaintext or deleting other vault snapshots.
+
+When metadata references a profile whose expected vault filename is missing, startup scans only unclaimed, strictly named vault candidates. It decrypts and validates each candidate, and copies the encrypted DPAPI blob to the expected profile filename only when the stable account fingerprint matches exactly. Invalid or ambiguous candidates are ignored, and the original candidate is not deleted.
 
 ## Login handoff
 

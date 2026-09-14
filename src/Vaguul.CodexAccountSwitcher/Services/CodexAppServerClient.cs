@@ -43,11 +43,12 @@ public sealed class CodexAppServerClient
         SecureFileSystem.CreatePrivateDirectory(temporaryHome);
         Process? process = null;
         byte[]? refreshedAuth = null;
+        var temporaryAuthPath = Path.Combine(temporaryHome, "auth.json");
         try
         {
             var config = Encoding.UTF8.GetBytes("cli_auth_credentials_store = \"file\"\r\n");
             await SecureFileSystem.AtomicWriteAsync(Path.Combine(temporaryHome, "config.toml"), config, cancellationToken: cancellationToken);
-            await SecureFileSystem.AtomicWriteAsync(Path.Combine(temporaryHome, "auth.json"), authJson, cancellationToken: cancellationToken);
+            await SecureFileSystem.AtomicWriteAsync(temporaryAuthPath, authJson, cancellationToken: cancellationToken);
 
             process = Start(executable, temporaryHome);
             var stderrDrain = DrainAsync(process.StandardError);
@@ -81,16 +82,17 @@ public sealed class CodexAppServerClient
                 // Usage remains useful when an older Codex build does not expose account metadata.
             }
 
+            // Codex may remove the temporary auth file during graceful shutdown. Capture any
+            // refresh-token rotation while app-server is still running, then try once more after it exits.
+            refreshedAuth = await TryReadAuthSnapshotAsync(temporaryAuthPath, cancellationToken);
             await StopAsync(process, cancellationToken);
             await stderrDrain;
             process.Dispose();
             process = null;
 
-            refreshedAuth = await SecureFileSystem.ReadBoundedAsync(
-                Path.Combine(temporaryHome, "auth.json"),
-                AuthDocument.MaximumBytes,
-                cancellationToken);
-            if (AuthDocument.Validate(refreshedAuth).Fingerprint != inputIdentity.Fingerprint)
+            refreshedAuth ??= await TryReadAuthSnapshotAsync(temporaryAuthPath, cancellationToken);
+            if (refreshedAuth is not null
+                && AuthDocument.Validate(refreshedAuth).Fingerprint != inputIdentity.Fingerprint)
             {
                 throw new InvalidDataException("Codex changed the account identity during the usage check.");
             }
@@ -232,6 +234,18 @@ public sealed class CodexAppServerClient
     private static async Task DrainAsync(StreamReader reader)
     {
         while (await reader.ReadLineAsync() is not null) { }
+    }
+
+    internal static async Task<byte[]?> TryReadAuthSnapshotAsync(string path, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await SecureFileSystem.ReadBoundedAsync(path, AuthDocument.MaximumBytes, cancellationToken);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return null;
+        }
     }
 
     private static (string? Email, string? PlanType) ParseAccount(string? responseJson)
