@@ -22,7 +22,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("usage metadata persists without credentials", TestUsageMetadataAsync),
     ("profile transfer encrypts and imports", TestProfileTransferAsync),
     ("orphaned active snapshot is recoverable", TestOrphanRecoveryAsync),
-    ("detached switch task arguments are constrained", TestSwitchTaskArguments)
+    ("detached switch task arguments are constrained", TestSwitchTaskArguments),
+    ("orphaned target snapshot is recovered before switching", TestOrphanTargetAsync)
 };
 
 var failures = 0;
@@ -404,6 +405,38 @@ static Task TestSwitchTaskArguments()
         ["--complete-switch", profileId, "--task-name", taskName, "extra"],
         out _), "Extra worker arguments were accepted.");
     return Task.CompletedTask;
+}
+
+static async Task TestOrphanTargetAsync()
+{
+    await WithFixtureAsync(async fixture =>
+    {
+        var source = Auth("source", "source-token");
+        var target = Auth("orphan-target", "target-token");
+        var targetId = Guid.NewGuid().ToString("N");
+        await File.WriteAllBytesAsync(fixture.Paths.ActiveAuthPath, source);
+        await fixture.Vault.AddAsync("Source", "#4F8EF7", source);
+        var encrypted = new DpapiProtector().Protect(target);
+        try
+        {
+            await SecureFileSystem.AtomicWriteAsync(
+                Path.Combine(fixture.Paths.VaultDirectory, targetId + ".auth.dpapi"),
+                encrypted);
+
+            var result = await fixture.Coordinator(new FakeDesktop(true)).SwitchAsync(targetId);
+
+            True(result.Succeeded && !result.RolledBack, result.Message);
+            var profiles = await fixture.Vault.GetProfilesAsync();
+            True(profiles.Any(profile => profile.Id == targetId), "The orphaned target metadata was not recovered.");
+            True((await File.ReadAllBytesAsync(fixture.Paths.ActiveAuthPath)).SequenceEqual(target), "The orphaned target was not installed.");
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(source);
+            CryptographicOperations.ZeroMemory(target);
+            CryptographicOperations.ZeroMemory(encrypted);
+        }
+    });
 }
 
 static async Task WithFixtureAsync(Func<Fixture, Task> test)

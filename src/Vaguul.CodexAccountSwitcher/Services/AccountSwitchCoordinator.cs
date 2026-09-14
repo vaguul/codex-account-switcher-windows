@@ -35,8 +35,20 @@ public sealed class AccountSwitchCoordinator
             targetAuth = await _vault.ReadAuthAsync(targetProfileId, cancellationToken);
             var targetIdentity = AuthDocument.Validate(targetAuth);
             var profiles = await _vault.GetProfilesAsync(cancellationToken);
-            var target = profiles.SingleOrDefault(profile => profile.Id == targetProfileId)
-                ?? throw new InvalidOperationException("The target profile no longer exists.");
+            var target = profiles.SingleOrDefault(profile => profile.Id == targetProfileId);
+            if (target is null)
+            {
+                // A save can leave a valid DPAPI snapshot briefly ahead of profiles.json.
+                // Prefer an existing identity, otherwise adopt this validated orphan.
+                target = profiles.SingleOrDefault(profile => profile.Fingerprint == targetIdentity.Fingerprint);
+                if (target is null)
+                {
+                    await _vault.AdoptOrphanAsync(targetProfileId, "Recovered account", "#4F8EF7", cancellationToken);
+                    target = (await _vault.GetProfilesAsync(cancellationToken)).SingleOrDefault(profile => profile.Id == targetProfileId)
+                        ?? throw new InvalidOperationException("The target profile metadata could not be recovered.");
+                }
+            }
+
             if (target.Fingerprint != targetIdentity.Fingerprint)
             {
                 throw new InvalidDataException("The target profile failed its identity check.");

@@ -17,7 +17,7 @@ Codex owns `%CODEX_HOME%` (normally `%USERPROFILE%\.codex`). The only Codex-owne
 
 1. The UI validates the selected profile identifier and creates a one-shot Windows Scheduled Task whose command contains only the target profile ID and task ID.
 2. The UI exits before Codex is closed; the scheduled worker waits for the original instance to release the mutex and then performs the switch outside Codex's process/job ancestry.
-3. The worker decrypts and validates the target profile.
+3. The worker decrypts and validates the target profile. If its valid DPAPI snapshot is ahead of `profiles.json`, it recovers the metadata or maps it to the existing matching identity; a missing snapshot is still fatal.
 4. If the target is already active, exit without touching processes or files.
 5. Validate the active `auth.json` before shutdown. If its stable fingerprint belongs to a saved profile, refresh that profile; otherwise retain the validated active bytes only in the encrypted recovery journal for rollback.
 6. Close only a verified `ChatGPT.exe` located in the installed `OpenAI.Codex_*` package, then attempt a graceful close followed by a bounded individual close for each standalone `codex.exe`.

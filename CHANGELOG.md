@@ -1,11 +1,17 @@
 # Changelog
 
+## 0.2.6 - 2026-09-14
+
+- Recover a valid target DPAPI snapshot when its metadata write was interrupted or temporarily out of sync, instead of reporting that the selected profile no longer exists.
+- Add regression coverage for switching to a recovered target snapshot.
+
 ## 0.2.5 - 2026-09-14
 
 - Hand off confirmed switches to a detached one-shot Windows worker before Codex closes, preventing the switcher from being terminated through Codex's process/job ancestry.
 - Validate worker task arguments and clean up the scheduled task after completion.
 - Disambiguate duplicate profile labels with the saved email or a short profile identifier.
-- Add regression coverage for constrained detached-worker arguments.
+- Recover a valid target DPAPI snapshot if its metadata write was interrupted.
+- Add regression coverage for constrained detached-worker arguments and target recovery.
 
 ## 0.2.4 - 2026-09-14
 
