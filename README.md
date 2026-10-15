@@ -4,6 +4,12 @@ A small Windows desktop application for keeping multiple Codex logins on one PC 
 
 > Independent community project. Not affiliated with or endorsed by OpenAI.
 
+## Download: Windows Preview
+
+[Download v0.2.11](https://github.com/vaguul/codex-account-switcher-windows/releases/tag/v0.2.11) includes the Windows executable and `SHA256SUMS.txt`.
+
+This is an **unsigned preview**, not a stable release. Read the release notes and the security section before using it. Finish active Codex work before switching accounts: the switch closes Codex processes, and unsaved CLI work may be lost. Compatibility with future Codex releases is not guaranteed.
+
 ## Why this implementation
 
 Existing switchers demonstrate that account switching is useful, but their code and issue trackers also show recurring failure modes: plaintext credential copies, account logout after switching, interrupted conversations, incorrect quota labels, startup parse failures, and large background write activity. This project intentionally uses a narrower design:
